@@ -5,7 +5,7 @@
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
   "upstream": { "host": "v0.14.1", "managedEngine": "v0.15.1", "piSdk": "1.1.0" },
-  "engineCommit": "6a7b51a925944522c26f692f7b64d460d08cc777",
+  "engineCommit": "cc919345430ae3846862470755b6daf202c48ae5",
   "build": { "bun": "1.3.9", "esbuild": "0.25.12", "oauthDefines": "empty; user credentials are never build inputs" },
   "expectedBuild": {
     "mainSha256": "693ddda010184432b9b04a66f834042c9cd0e5ad02e18096df7c82ef55e13a43",

@@ -52,6 +52,10 @@ bash scripts/build-native-antigravity-release.sh
 
 禁止使用通用 `electron:build` / `electron:dist`，它们会重建冻结组件。旧 `.env` 或用户 token 不是当前个人版的构建输入；已验证构建期 OAuth defines 为空。用户授权仅在运行时本机保存。
 
+## 安装包归档
+
+使用 `bash scripts/personal-package.sh '/path/to/Craft Agents.app' '/path/to/new-release.zip'`。脚本只打包已校验的程序，保留代码、执行权限和符号链接，不保存 Finder/资源叉等扩展元数据。正式发布前，在本机非 iCloud 的开发临时目录解压，再用 personal-app-inventory.py 验证签名与全文件清单一致。不要因解压到同步盘产生元数据问题而改动正在使用的应用。
+
 ## 每次改动与发布
 
 1. 读取 AGENTS.md、组件锁定和日志；先给用户改动计划。
@@ -67,6 +71,6 @@ bash scripts/build-native-antigravity-release.sh
 
 ## 上游与技能
 
-官方仓库仅作为参考来源。用户没要求，不主动追版本；不自动合并或推送官方仓库。不恢复 app-update.yml。
+官方仓库仅作为参考来源。用户没要求，不主动追版本；不自动合并或推送官方仓库。不恢复 app-update.yml。继承的自动化模板保存在 docs/upstream-workflows，不放在活动的 .github/workflows 目录；Actions 保持禁用，普通发布不要求扩大 workflow 授权。
 
 技能 craft-fork-sync 是此文档的入口，历史 PLAYBOOK 仅供查旧方法。项目版本记录只写本仓库，不写 Notion，不将个人数据放进 Git。
