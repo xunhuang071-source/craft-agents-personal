@@ -87,8 +87,8 @@ export const CRAFT_PI_EPHEMERAL_MAX_BACKOFF_MS =
     (2 ** CRAFT_PI_EPHEMERAL_RETRY_SETTINGS.maxRetries - 1);
 
 /** Settings applied to one Pi session, isolated from project/global Pi files. */
-export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): PiSettings {
-  const retry = purpose === 'ephemeral'
+export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main', managedTransport = false): PiSettings {
+  const retry = managedTransport ? { enabled: false, maxRetries: 0, baseDelayMs: 2_000, maxAgentDelayMs: 1_000, provider: { maxRetries: 0, maxRetryDelayMs: 1_000 } } : purpose === 'ephemeral'
     ? CRAFT_PI_EPHEMERAL_RETRY_SETTINGS
     : CRAFT_PI_RETRY_SETTINGS;
 
@@ -111,7 +111,7 @@ export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): P
     // with a 1-token output cap shortly before the cache expires, only when
     // the expected saving is at least $0.05. Keep that SDK default for chats;
     // utility sessions are one-shot and disposed right after their prompt.
-    cacheWarming: purpose === 'ephemeral' ? 'off' : 'streaming',
+    cacheWarming: managedTransport || purpose === 'ephemeral' ? 'off' : 'streaming',
   };
 }
 
@@ -122,6 +122,7 @@ export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): P
  */
 export function createCraftSettingsManager(
   purpose: CraftPiSessionPurpose = 'main',
+  managedTransport = false,
 ): SettingsManager {
-  return SettingsManager.inMemory(buildCraftPiSettings(purpose), { projectTrusted: false });
+  return SettingsManager.inMemory(buildCraftPiSettings(purpose, managedTransport), { projectTrusted: false });
 }

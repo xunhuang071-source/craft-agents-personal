@@ -10,17 +10,15 @@ export interface CustomEndpointModelDefaults {
 export interface CustomEndpointModelOverrides {
   contextWindow?: number
   supportsImages?: boolean
+  supportsThinking?: boolean
+  maxTokens?: number
 }
 
 export interface CustomEndpointModelEntry extends CustomEndpointModelOverrides {
   id: string
 }
 
-export type CustomEndpointModelConfig = string | {
-  id: string
-  contextWindow?: number
-  supportsImages?: boolean
-}
+export type CustomEndpointModelConfig = string | (CustomEndpointModelOverrides & { id: string })
 
 /** Strip bare model IDs (remove pi/ prefix if present). */
 export function stripPiPrefix(id: string): string {
@@ -43,6 +41,8 @@ export function normalizeCustomEndpointModelEntry(model: CustomEndpointModelConf
     id: stripPiPrefix(model.id),
     ...(model.contextWindow !== undefined ? { contextWindow: model.contextWindow } : {}),
     ...(model.supportsImages !== undefined ? { supportsImages: model.supportsImages } : {}),
+    ...(model.supportsThinking !== undefined ? { supportsThinking: model.supportsThinking } : {}),
+    ...(model.maxTokens !== undefined ? { maxTokens: model.maxTokens } : {}),
   }
 }
 
@@ -69,11 +69,12 @@ export function buildCustomEndpointModelDef(
   return {
     id,
     name: id,
-    reasoning: false,
+    reasoning: overrides?.supportsThinking ?? false,
     input,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: overrides?.contextWindow ?? 131_072,
-    maxTokens: 8_192,
+    maxTokens: overrides?.maxTokens && Number.isFinite(overrides.maxTokens) && overrides.maxTokens > 0
+      ? Math.floor(overrides.maxTokens) : 8_192,
     ...(api === 'openai-completions' ? { compat: { supportsStore: false } } : {}),
   }
 }

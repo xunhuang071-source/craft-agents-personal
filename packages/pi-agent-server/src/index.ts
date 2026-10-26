@@ -118,6 +118,7 @@ import { providerEndpointEnv } from './provider-endpoint-env.ts';
 
 /** Init message from main process — configures the Pi agent server */
 interface InitMessage {
+  managedProvider?: 'antigravity';
   type: 'init';
   apiKey: string;
   model: string;
@@ -138,7 +139,7 @@ interface InitMessage {
   branchFromSessionPath?: string;
   branchFromSdkTurnId?: string;
   customEndpoint?: { api: CustomEndpointApi; supportsImages?: boolean };
-  customModels?: Array<string | { id: string; contextWindow?: number; supportsImages?: boolean }>;
+  customModels?: Array<string | { id: string; contextWindow?: number; supportsImages?: boolean; supportsThinking?: boolean; maxTokens?: number }>;
   piAuth?: { provider: string; credential: PiCredential };
 }
 
@@ -150,7 +151,7 @@ interface RuntimeConfigUpdateMessage {
   authType?: string;
   baseUrl?: string;
   customEndpoint?: { api: CustomEndpointApi; supportsImages?: boolean };
-  customModels?: Array<string | { id: string; contextWindow?: number; supportsImages?: boolean }>;
+  customModels?: Array<string | { id: string; contextWindow?: number; supportsImages?: boolean; supportsThinking?: boolean; maxTokens?: number }>;
 }
 
 /** Messages from main process (stdin) */
@@ -496,12 +497,12 @@ function registerCustomEndpointModels(
 ): void {
   for (const m of models) {
     customEndpointModelIds.add(m.id);
-    if (m.contextWindow || m.supportsImages !== undefined) {
-      customModelOverrides.set(m.id, {
-        ...(m.contextWindow ? { contextWindow: m.contextWindow } : {}),
-        ...(m.supportsImages !== undefined ? { supportsImages: m.supportsImages } : {}),
-      });
-    }
+    customModelOverrides.set(m.id, {
+      ...(m.contextWindow ? { contextWindow: m.contextWindow } : {}),
+      ...(m.supportsImages !== undefined ? { supportsImages: m.supportsImages } : {}),
+      ...(m.supportsThinking !== undefined ? { supportsThinking: m.supportsThinking } : {}),
+      ...(m.maxTokens !== undefined ? { maxTokens: m.maxTokens } : {}),
+    });
   }
   const allIds = [...customEndpointModelIds];
   registry.registerProvider('custom-endpoint', {
@@ -668,7 +669,7 @@ async function ensureSession(): Promise<AgentSession> {
   // settingsManager: explicit in-memory settings (retry policy, compaction)
   // instead of the SDK default that merges `<cwd>/.pi/settings.json` from the
   // user's working directory and writes to `<agentDir>/settings.json`.
-  const settingsManager = createCraftSettingsManager('main');
+  const settingsManager = createCraftSettingsManager('main', initConfig?.managedProvider === 'antigravity');
   // Resource isolation: never resolve extensions/skills from ~/.pi/agent.
   const agentDir = resolveCraftAgentDir(initConfig);
   const sessionOptions: CreateAgentSessionOptions = {
@@ -1055,7 +1056,7 @@ async function queryLlm(
     // Create minimal ephemeral session: no tools (an empty allowlist also keeps
     // extension and MCP tools out), and the same isolated agentDir as the main
     // session plus the system-prompt override.
-    const ephemeralSettings = createCraftSettingsManager('ephemeral');
+    const ephemeralSettings = createCraftSettingsManager('ephemeral', initConfig?.managedProvider === 'antigravity');
     const ephemeralPromptOverride = createSystemPromptOverride();
     const ephemeralAgentDir = resolveCraftAgentDir(initConfig!);
     const ephemeralOptions: CreateAgentSessionOptions = {

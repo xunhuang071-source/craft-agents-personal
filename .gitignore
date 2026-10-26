@@ -73,3 +73,12 @@ credentials.enc
 # act (local GitHub Actions runner)
 .secrets
 .actrc
+
+# Personal local builds and private runtime fixtures
+.personal-build/
+personal-artifacts/
+native-artifacts/
+.native-validation/
+*.log
+.env.*
+!.env.example
