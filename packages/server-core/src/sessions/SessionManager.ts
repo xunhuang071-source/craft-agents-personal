@@ -79,6 +79,7 @@ import { createTaskFromSpec, resolveCreateTaskProjectId } from '../tasks'
 import { buildPagesToolCallbacks } from '../pages/tool-callbacks'
 import { buildDecisionToolCallbacks } from '../decisions/tool-callbacks'
 import { buildServersFromSources as buildServersFromSourcesShared } from '../sources/build-servers'
+import { buildMcpSourceToolCallbacks } from '../sources/mcp-source-tool-callbacks'
 import { ConfigWatcher, type ConfigWatcherCallbacks } from '@craft-agent/shared/config'
 import { getValidClaudeOAuthToken } from '@craft-agent/shared/auth'
 import { resolveAuthEnvVars } from '@craft-agent/shared/config'
@@ -962,6 +963,11 @@ interface ManagedSession {
   turnSteers?: string[]
   /** Thinking level adaptive thinking chose for the current request; an auto-retry keeps it. */
   turnThinkingOverride?: ThinkingLevel | null
+  /**
+   * The current request began with a message the user sent, not an app-generated hidden one (a
+   * background-task wake-up). Source-activation and auth retries keep it.
+   */
+  turnFromUser?: boolean
   /** Suggestion hint sent with the current request; an auth retry sends it again. */
   turnSuggestionHint?: string | null
   /** Adaptive thinking's answer for the last user turn, for the next turn's `corrected`/`accepted` follow-up. */
@@ -1163,23 +1169,41 @@ interface PendingDelta {
   turnId?: string
 }
 
+/** Frame an app-generated message the agent receives as a user turn, so it is not mistaken for the user. */
+export function labelSystemNotice(text: string): string {
+  return [
+    '<system-notification>',
+    'Sent by Craft Agents automatically, not typed by the user. It is not a reply to, or approval of, anything you asked.',
+    text,
+    '</system-notification>',
+  ].join('\n')
+}
+
 /**
  * In-process session-completion signal for the Tasks Conductor.
  *
  * Emitted once per turn from `onProcessingStopped` when the session's message
  * queue is empty (i.e. true completion, not a hand-off between queued turns),
  * carrying the stop `reason`. This is an internal, side-effect-free seam — it is
- * NOT a renderer event and NOT exposed to agents. The Conductor maps the reason
- * onto a node run-state: complete→done, error/timeout→failed, interrupted→cancelled.
+ * NOT a renderer event and NOT exposed to agents. A turn the user stopped is
+ * `interrupted` (or `timeout` when it did not drain), never `complete`.
  */
 export interface SessionCompletionEvent {
   sessionId: string
   workspaceId: string
   reason: 'complete' | 'interrupted' | 'error' | 'timeout'
-  /** The final (non-intermediate) assistant message id for this turn, if any. */
+  /** The final (non-intermediate) assistant message this turn produced, if any. */
   finalMessageId?: string
-  /** Convenience copy of the final assistant message text (same as getSessionFinalText). */
+  /** That message's text. Absent when the turn produced none: never an earlier turn's reply. */
   finalText?: string
+  /**
+   * Background agents and Workflows the session launched that are still running after the turn.
+   * Their completion wakes the session for another turn, so the work is not finished yet.
+   * Background shells and other tasks (Monitor...) are not counted: they may never end.
+   */
+  backgroundWorkRunning?: number
+  /** The turn answered a message the user sent; false for an app-generated one (a background-task wake-up). */
+  fromUser?: boolean
   /** The session's cumulative token usage, so the Conductor can meter token_budget without re-fetching. */
   tokenUsage?: TokenUsage
 }
@@ -1696,13 +1720,19 @@ export class SessionManager implements ISessionManager {
     managed.thinkingTrace = undefined
     const log = (line: string) => sessionLog.info(line)
     const interactive = !managed.hidden && managed.systemPromptPreset !== 'mini'
+    // A caller-chosen level for this turn wins and is kept for its retries (see the branch above).
+    const explicitThinking = options?.thinkingLevel ?? null
     // Slash commands are instructions to the app, and hidden messages (background-task nudges) are
     // the app's own: neither is a request to rate, so they run at the session level.
-    const rateThinking = interactive && !options?.hidden && !message.trim().startsWith('/') && this.decisionFeatureActive('adaptiveThinking')
+    const rateThinking = !explicitThinking && interactive && !options?.hidden && !message.trim().startsWith('/') && this.decisionFeatureActive('adaptiveThinking')
     const suggest = interactive && !managed.taskRunId && !managed.taskSlug
       && this.decisionFeatureActive('suggestions') && wantsSuggestion(message, options)
     // Nothing to ask: the caller skips the await entirely.
-    if (!rateThinking && !suggest) return null
+    if (!rateThinking && !suggest) {
+      if (!explicitThinking) return null
+      managed.turnThinkingOverride = explicitThinking
+      return Promise.resolve({ thinkingOverride: explicitThinking, suggestionHint: null })
+    }
 
     // Adaptive thinking: a lower level for a simple turn, never above the session's. It reads the
     // message with the end of the previous reply and the attachments' names (never their content).
@@ -1722,7 +1752,7 @@ export class SessionManager implements ISessionManager {
             sessionLog.warn(`[adaptive-thinking] Check failed for session ${managed.id}:`, e)
             return null
           })
-      : Promise.resolve(null)
+      : Promise.resolve(explicitThinking)
 
     // Suggestions: point the agent at a skill or usable inactive source the message plainly needs.
     const suggestion = suggest
@@ -3742,11 +3772,13 @@ export class SessionManager implements ISessionManager {
             customModels: connection.models?.map(model => {
               if (typeof model === 'string') return model
               const supportsImages = typeof model.supportsImages === 'boolean' ? model.supportsImages : undefined
-              if (model.contextWindow || supportsImages !== undefined) {
+              if (model.contextWindow || supportsImages !== undefined || model.supportsThinking !== undefined || model.maxOutputTokens !== undefined) {
                 return {
                   id: model.id,
                   ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
                   ...(supportsImages !== undefined ? { supportsImages } : {}),
+                  ...(model.supportsThinking !== undefined ? { supportsThinking: model.supportsThinking } : {}),
+                  ...(model.maxOutputTokens !== undefined ? { maxTokens: model.maxOutputTokens } : {}),
                 }
               }
               return model.id
@@ -4898,6 +4930,13 @@ export class SessionManager implements ISessionManager {
           onContentChanged: (pageSlug: string) => {
             this.enqueuePageThumbnail(managed.workspace.id, managed.workspace.rootPath, pageSlug)
           },
+        }),
+        // MCP source resources & prompts (source_list_resources/source_read_resource/
+        // source_list_prompts/source_get_prompt). Pool and enabled sources are read
+        // at call time: getOrCreateAgent replaces the pool when it recreates the agent.
+        mcpSources: buildMcpSourceToolCallbacks({
+          getPool: () => managed.mcpPool,
+          getEnabledSourceSlugs: () => managed.enabledSourceSlugs,
         }),
         // Decision model (`decide`) — always wired; the callback re-checks the
         // Settings switch, the feature toggle and the key on every call, so an
@@ -6401,6 +6440,7 @@ export class SessionManager implements ISessionManager {
       sessionLog.info(`sendMessage: dropped duplicate source-activation retry for ${sessionId}`)
       return
     }
+    if (!activationResend && !_isAuthRetry) managed.turnFromUser = !options?.hidden
 
     // Clear any pending plan execution state when a new user message is sent.
     // The explicit /compact turn immediately after "Accept & Compact" is the
@@ -6953,7 +6993,10 @@ export class SessionManager implements ISessionManager {
 
           sendSpan.mark('chat.complete')
           sendSpan.end()
-          this.onProcessingStopped(sessionId, 'complete')
+          // The backend also ends a turn the user stopped with `complete`. Reporting that as a
+          // completion marked a stopped task step done with no output (found 2026-10-11).
+          const stoppedDuringTurn = (managed.stopEpoch ?? 0) !== turnStopEpoch
+          this.onProcessingStopped(sessionId, stoppedDuringTurn ? 'interrupted' : 'complete')
           return  // Exit function, skip finally block (onProcessingStopped handles cleanup)
         }
 
@@ -7227,6 +7270,7 @@ export class SessionManager implements ISessionManager {
    * Used by the Tasks Conductor; empty until something subscribes, so zero overhead otherwise.
    */
   private sessionCompletionListeners = new Set<(evt: SessionCompletionEvent) => void>()
+  private readonly sessionActivityListeners = new Map<string, Set<() => void>>()
 
   /**
    * Subscribe to in-process session completion (Tasks Conductor seam).
@@ -7236,6 +7280,37 @@ export class SessionManager implements ISessionManager {
     this.sessionCompletionListeners.add(listener)
     return () => {
       this.sessionCompletionListeners.delete(listener)
+    }
+  }
+
+  /**
+   * Subscribe to a session's activity: called for every event its agent emits (text, thinking,
+   * tool calls, status). Lets a caller time out only a turn that has stalled, not one that is
+   * slow but working. In-process only. Returns an unsubscribe function.
+   */
+  onSessionActivity(sessionId: string, listener: () => void): () => void {
+    let listeners = this.sessionActivityListeners.get(sessionId)
+    if (!listeners) {
+      listeners = new Set()
+      this.sessionActivityListeners.set(sessionId, listeners)
+    }
+    listeners.add(listener)
+    return () => {
+      const current = this.sessionActivityListeners.get(sessionId)
+      current?.delete(listener)
+      if (current?.size === 0) this.sessionActivityListeners.delete(sessionId)
+    }
+  }
+
+  private notifySessionActivity(sessionId: string): void {
+    const listeners = this.sessionActivityListeners.get(sessionId)
+    if (!listeners) return
+    for (const listener of [...listeners]) {
+      try {
+        listener()
+      } catch (err) {
+        sessionLog.error(`onSessionActivity listener threw for session ${sessionId}:`, err)
+      }
     }
   }
 
@@ -7416,14 +7491,17 @@ export class SessionManager implements ISessionManager {
       // Tasks Conductor seam: signal true completion (queue empty) with the stop
       // reason + this turn's final assistant message, so the Conductor can advance
       // the corresponding node. In-process only; never sent to the renderer/agents.
+      const turnFinalMessageId = didReceiveNewFinalMessage ? currentFinalMessageId : undefined
       this.emitSessionComplete({
         sessionId,
         workspaceId: managed.workspace.id,
         reason,
-        finalMessageId: currentFinalMessageId,
-        finalText: currentFinalMessageId
-          ? managed.messages.find(m => m.id === currentFinalMessageId)?.content
+        finalMessageId: turnFinalMessageId,
+        finalText: turnFinalMessageId
+          ? managed.messages.find(m => m.id === turnFinalMessageId)?.content
           : undefined,
+        backgroundWorkRunning: this.countRunningBackgroundWork(managed),
+        fromUser: managed.turnFromUser !== false,
         tokenUsage: managed.tokenUsage,
       })
 
@@ -7652,6 +7730,21 @@ export class SessionManager implements ISessionManager {
         sessionId,
       })
     }
+  }
+
+  /**
+   * Background agents and Workflows the session's own agent launched that are still running.
+   * Only keep-alive lets them outlive the turn (otherwise they were just marked orphaned), and
+   * their completion wakes the idle session. Shells and other tasks are left out: a dev server or
+   * a watcher may never end, and a task step must not wait for it.
+   */
+  private countRunningBackgroundWork(managed: ManagedSession): number {
+    if (!this.keepBackgroundTasksAlive) return 0
+    let running = 0
+    for (const task of managed.backgroundTaskRegistry.values()) {
+      if (task.status === 'running' && !task.untracked && (task.kind === 'agent' || task.kind === 'workflow')) running++
+    }
+    return running
   }
 
   /**
@@ -8340,6 +8433,7 @@ export class SessionManager implements ISessionManager {
   private async processEvent(managed: ManagedSession, event: AgentEvent): Promise<void> {
     const sessionId = managed.id
     const workspaceId = managed.workspace.id
+    this.notifySessionActivity(sessionId)
 
     switch (event.type) {
       case 'text_delta':
@@ -9003,10 +9097,12 @@ export class SessionManager implements ISessionManager {
                   `Briefly let the user know it did not complete successfully.`,
                 ].filter(Boolean).join('\n'))
             : event.status === 'completed'
+            // An agent's output file is its whole transcript (JSONL): reading it floods the context, and
+            // the SDK's task notification already carries the result.
             ? [
                 `[background-task-completed] The background agent you launched (${label}) has finished.`,
-                outputFile ? `Its full output is saved at: ${outputFile}` : '',
-                `Read that output file and present the results to the user now. Do NOT spawn another background agent — just read the file and summarize the findings inline.`,
+                `Its result is in the task notification. Present it to the user now, inline. Do NOT spawn another background agent.`,
+                outputFile ? `Its output file (${outputFile}) is the agent's full transcript: do not read it whole; if the notification lacks something, read only its end.` : '',
               ].filter(Boolean).join('\n')
             : [
                 `[background-task-${event.status}] The background agent you launched (${label}) ended with status "${event.status}".`,
@@ -9021,7 +9117,10 @@ export class SessionManager implements ISessionManager {
           // Ride the normal turn machinery (resume + persistence). `hidden: true`
           // keeps the nudge out of the transcript — the agent's response (the
           // presented result) renders as a normal assistant turn.
-          void this.sendMessage(sessionId, nudge, [], [], { hidden: true }).catch((err) => {
+          // It rides in as a user message, so say plainly that nobody typed it: agents took
+          // these for the user speaking, mid-task (found 2026-10-11).
+          const framed = labelSystemNotice(nudge)
+          void this.sendMessage(sessionId, framed, [], [], { hidden: true }).catch((err) => {
             sessionLog.error(`[bg-lifecycle] failed to surface completed task ${event.taskId}:`, err)
           })
         }

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "version": "wallee-v1.0.0",
+  "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
+  "platform": "darwin-arm64",
+  "applicationId": "com.lukilabs.craft-agent",
+  "upstream": { "host": "v0.14.1", "managedEngine": "v0.15.1", "piSdk": "1.1.0" },
+  "engineCommit": "6a7b51a925944522c26f692f7b64d460d08cc777",
+  "build": { "bun": "1.3.9", "esbuild": "0.25.12", "oauthDefines": "empty; user credentials are never build inputs" },
+  "expectedBuild": {
+    "mainSha256": "693ddda010184432b9b04a66f834042c9cd0e5ad02e18096df7c82ef55e13a43",
+    "managedPiSha256": "5f82eeeaf5cdc1e5a6a2214671e8c133afa2b05099bce0ef58cd201aa304b535"
+  },
+  "frozen": {
+    "rendererTreeSha256": "cb0694e494090f77457d63b7ddbb966583639f836ae5051060b58e866cb4de99",
+    "retainedPiSha256": "94d2ba42e3505ed0f0d3d496bf95d90363135b2d699b8163beba571bdae6b7ab",
+    "infoPlistSha256": "23f4b5895fbad9212625548867e7b120557536d2e56b24fe96a9ad65419b2dc1",
+    "files": {
+      "Contents/Resources/app/dist/bootstrap-preload.cjs": "146938120e9b481540b4eee7c023fe26a743261fae59000fa19aba4a9d8af5e1",
+      "Contents/Resources/app/dist/browser-toolbar-preload.cjs": "5778078b69762ac5edd8af94a820088c1ecfe02b4e26ace134ae6ea3d7a84049",
+      "Contents/Resources/app/dist/interceptor.cjs": "35af764281e6f3afb191ef03ae80e30e07f6644ff920ae289b2608a91bfe95ae",
+      "Contents/Resources/app/dist/resources/docs/sources.md": "8e23cc51857277f2a53d8062f43ba97417c9832633327ed69db5669752880b46"
+    }
+  },
+  "frozenBaseAsset": {
+    "repository": "xunhuang071-source/craft-agents-personal",
+    "tag": "wallee-v1.0.0",
+    "asset": "Craft-Agents-wallee-v1.0.0-mac-arm64.zip",
+    "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
+  },
+  "officialAutomaticUpdates": false,
+  "userProfileIncluded": false
+}

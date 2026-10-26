@@ -27,6 +27,8 @@ export interface ResolvedBackendRuntimePaths {
    */
   interceptorBundlePath?: string;
   piServerPath?: string;
+  /** Optional adapted runtime used only by the new managed connection. */
+  antigravityPiServerPath?: string;
   nodeRuntimePath?: string;
   bundledRuntimePath?: string;
 }
@@ -221,6 +223,7 @@ export function resolveBackendRuntimePaths(hostRuntime: BackendHostRuntimeContex
     claudeCliPath: resolveClaudeBinaryPath(hostRuntime),
     interceptorBundlePath: resolveInterceptorBundlePath(hostRuntime),
     piServerPath: resolveServerPath(hostRuntime, 'pi-agent-server'),
+    antigravityPiServerPath: resolveServerPath(hostRuntime, hostRuntime.isPackaged ? 'antigravity-pi-agent-server' : 'pi-agent-server'),
     nodeRuntimePath: hostRuntime.nodeRuntimePath || bundledRuntimePath || process.execPath,
     bundledRuntimePath,
   };

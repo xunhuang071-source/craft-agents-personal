@@ -27,6 +27,13 @@ import type {
 // Re-export generateMessageId for handler convenience
 export { generateMessageId } from '@craft-agent/core/types'
 
+export interface ManagedAntigravityStatus {
+  state: 'disconnected' | 'connecting' | 'connected' | 'error'
+  error?: string
+  modelCount?: number
+  version?: string
+}
+
 // ---------------------------------------------------------------------------
 // Session types
 // ---------------------------------------------------------------------------
@@ -452,6 +459,12 @@ export interface SendMessageOptions {
    * surfacing) that should wake the agent without looking user-authored.
    */
   hidden?: boolean
+  /**
+   * Thinking level for this turn only (and its automatic retries); the session's own level is
+   * unchanged and no adaptive-thinking check runs. Used by app-driven turns with a known shape,
+   * e.g. the tasks:generate authoring turn.
+   */
+  thinkingLevel?: ThinkingLevel
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +865,21 @@ export interface BrowserInstanceInfo {
    * and main processes that pre-date the field working unchanged.
    */
   workspaceId?: string | null
+}
+
+/**
+ * Verdict of a security-challenge check on a browser page (Cloudflare interstitial,
+ * captcha challenge, …). Classified in apps/electron/src/main/security-challenge.ts.
+ */
+export interface BrowserSecurityChallenge {
+  /** A blocking challenge from a known provider: the user has to solve it. */
+  detected: boolean
+  /** Provider behind the evidence ('cloudflare', 'google', 'hcaptcha', …), or 'none'. */
+  provider: string
+  /** Evidence seen, including context that never decides a verdict. */
+  signals: string[]
+  /** Evidence too weak for a hand-off, e.g. a visible Turnstile widget: worth a note only. */
+  suspected?: boolean
 }
 
 export interface DeepLinkNavigation {

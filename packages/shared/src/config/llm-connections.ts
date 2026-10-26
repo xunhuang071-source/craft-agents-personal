@@ -181,6 +181,11 @@ export interface LlmConnection {
    */
   customEndpoint?: CustomEndpointConfig;
 
+  /** App-managed transport; does not change the existing Pi backend identity. */
+  managedProvider?: 'antigravity';
+  /** Non-secret generation; forces a clean credential reload after managed account changes. */
+  managedCredentialVersion?: string;
+
   /**
    * Behavior when the user sends a message while the agent is still streaming.
    * Optional for backward compat with config.json from before this field existed —
@@ -612,7 +617,7 @@ export const PI_PREFERRED_DEFAULTS: Record<string, string[]> = {
   // GPT-6 Astra entered the Pi catalog in SDK 0.85.1 for both the API-key and
   // the ChatGPT-account (openai-codex) flows; new connections default to it.
   openai: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.2', 'gpt-5.1', 'gpt-5', 'o4-mini', 'o3', 'gpt-4o'],
-  'openai-codex': ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.2', 'gpt-5.1', 'gpt-5', 'o4-mini', 'o3', 'gpt-4o'],
+  'openai-codex': ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.2', 'gpt-5.1', 'gpt-5', 'o4-mini', 'o3', 'gpt-4o'],
   // Stable models first so the connection-setup test (which uses
   // getDefaultModelForConnection) lands on a reliable model.
   // gemini-3-pro-preview and gemini-3.1-pro-preview are intermittently

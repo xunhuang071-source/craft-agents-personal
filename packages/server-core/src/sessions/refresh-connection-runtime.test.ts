@@ -202,13 +202,37 @@ describe('refreshConnectionRuntime', () => {
     // pi_compat connection with explicit per-model `supportsImages`, the
     // helper must forward that field on `customModels` so the Pi subprocess
     // can re-register the model with `input: ['text', 'image']`.
-    const agent = createAgentStub()
-    injectSession(sm, 'shape-check', tmpRoot, 'slug-A', agent)
-
-    await sm.refreshConnectionRuntime('slug-A')
-
-    expect(agent.updateRuntimeConfig).toHaveBeenCalledTimes(1)
-    const payload = agent.updateRuntimeConfig.mock.calls[0]?.[0]
+    // Run the shape fixture in a fresh process: global config/model resolvers are
+    // module singletons and an unconfigured test must not fall back to real user data.
+    const profile = join(tmpRoot, 'profile')
+    const moduleUrl = new URL('./SessionManager.ts', import.meta.url).href
+    const runtimeUrl = new URL('./runtime-config.ts', import.meta.url).href
+    const script = `
+      import { mkdirSync, writeFileSync } from 'node:fs';
+      mkdirSync(process.env.CRAFT_CONFIG_DIR, { recursive: true });
+      writeFileSync(process.env.CRAFT_CONFIG_DIR + '/credentials.enc', '');
+      const { resolveBackendContext } = await import(${JSON.stringify(new URL('../../../../packages/shared/src/agent/backend/index.ts', import.meta.url).href)});
+      const { SessionManager, createManagedSession } = await import(${JSON.stringify(moduleUrl)});
+      const { buildRestartRequiredSignature } = await import(${JSON.stringify(runtimeUrl)});
+      const connection = { slug: 'shape-fixture', name: 'Shape fixture', providerType: 'pi_compat', authType: 'api_key_with_endpoint', piAuthProvider: 'anthropic', baseUrl: 'http://127.0.0.1:12345', customEndpoint: { api: 'anthropic-messages' }, models: [{ id: 'fixture-model', supportsImages: true }], defaultModel: 'fixture-model', createdAt: 1 };
+      writeFileSync(process.env.CRAFT_CONFIG_DIR + '/config.json', JSON.stringify({ workspaces: [], llmConnections: [connection], defaultLlmConnection: connection.slug }));
+      const sm = new SessionManager();
+      const managed = createManagedSession({ id: 'shape-check', llmConnection: connection.slug }, { id: 'ws-test', name: 'Fixture', rootPath: ${JSON.stringify(tmpRoot)}, createdAt: 1 }, { messagesLoaded: true });
+      let payload;
+      managed.agent = { isProcessing: () => false, updateRuntimeConfig: async value => { payload = value; return true }, dispose: () => {} };
+      managed.backendRuntimeSignature = '__stale__';
+      const ctx = resolveBackendContext({ sessionConnectionSlug: connection.slug });
+      managed.backendRestartSignature = buildRestartRequiredSignature({ connection: ctx.connection, provider: ctx.provider, authType: ctx.authType, resolvedModel: ctx.resolvedModel });
+      sm.sessions.set('shape-check', managed);
+      await sm.refreshConnectionRuntime(connection.slug);
+      console.log('FIXTURE_PAYLOAD:' + JSON.stringify(payload));
+    `
+    const child = Bun.spawn([process.execPath, '--eval', script], { cwd: new URL('../../../../', import.meta.url).pathname, env: { ...process.env, CRAFT_CONFIG_DIR: profile }, stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exit] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exit, stderr).toBe(0)
+    const line = stdout.split('\n').find(line => line.startsWith('FIXTURE_PAYLOAD:'))
+    expect(line).toBeDefined()
+    const payload = JSON.parse(line!.slice('FIXTURE_PAYLOAD:'.length))
     expect(payload).toBeDefined()
     expect(payload).toMatchObject({
       model: expect.any(String),

@@ -18,6 +18,7 @@ import { createInterface, type Interface as ReadlineInterface } from 'node:readl
 import type { AgentEvent } from '@craft-agent/core/types';
 import type { FileAttachment } from '../utils/files.ts';
 import { getProxyEnvVars } from '../config/proxy-env.ts';
+import { ensureConnectionReady } from './connection-preflight.ts';
 
 import type {
   BackendConfig,
@@ -441,6 +442,8 @@ export class PiAgent extends BaseAgent {
    * Lazy initialization -- spawns on first use.
    */
   private async ensureSubprocess(): Promise<void> {
+    // Hosts lazily prepare app-managed transports. Ordinary connections remain unchanged.
+    await ensureConnectionReady(this.config.connectionSlug);
     if (this.subprocess && this.subprocessReady) {
       await this.subprocessReady;
       return;
@@ -590,6 +593,7 @@ export class PiAgent extends BaseAgent {
       baseUrl: runtime.baseUrl,
       customEndpoint: runtime.customEndpoint,
       customModels: runtime.customModels,
+      managedProvider: runtime.managedProvider,
       // Branch params for Pi SDK session fork
       branchFromSdkSessionId: this.config.session?.branchFromSdkSessionId,
       branchFromSessionPath: this.config.session?.branchFromSessionPath,

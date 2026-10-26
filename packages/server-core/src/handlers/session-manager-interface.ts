@@ -133,6 +133,8 @@ export interface ISessionManager {
   ): () => void
   /** Read a session's final assistant message text (Conductor output reader). */
   getSessionFinalText(sessionId: string): string | undefined
+  /** Called for every event a session's agent emits; lets callers time out only a stalled turn. */
+  onSessionActivity(sessionId: string, listener: () => void): () => void
   addMessageAnnotation(sessionId: string, messageId: string, annotation: AnnotationV1): void
   removeMessageAnnotation(sessionId: string, messageId: string, annotationId: string): void
   updateMessageAnnotation(

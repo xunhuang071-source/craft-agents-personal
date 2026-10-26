@@ -86,8 +86,9 @@ import { bootstrapServer, releaseServerLock } from '@craft-agent/server-core/boo
 import { createMessagingBootstrap, type MessagingBootstrapHandle } from '@craft-agent/messaging-gateway'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { initModelRefreshService, getModelRefreshService, setFetcherPlatform } from '@craft-agent/server-core/model-fetchers'
-import { setSearchPlatform, setImageProcessor } from '@craft-agent/server-core/services'
-import { createApplicationMenu } from './menu'
+import { setSearchPlatform, setImageProcessor, disposeAntigravityService } from '@craft-agent/server-core/services'
+import { createApplicationMenu, rebuildMenu } from './menu'
+import { bindAntigravityMenuHost, disposeAntigravityMenu } from './antigravity-menu'
 import { WindowManager } from './window-manager'
 import { loadWindowState, saveWindowState } from './window-state'
 import { getWorkspaces, getWorkspaceByNameOrId, loadStoredConfig, addWorkspace, saveConfig } from '@craft-agent/shared/config'
@@ -225,11 +226,11 @@ app.setName(process.env.CRAFT_APP_NAME || 'Craft Agents')
 if (process.defaultApp) {
   // Development mode: need to pass the app path
   if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [process.argv[1]])
+    if (process.env.CRAFT_NATIVE_VALIDATION !== '1') app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [process.argv[1]])
   }
 } else {
   // Production mode
-  app.setAsDefaultProtocolClient(DEEPLINK_SCHEME)
+  if (process.env.CRAFT_NATIVE_VALIDATION !== '1') app.setAsDefaultProtocolClient(DEEPLINK_SCHEME)
 }
 
 // Apply network proxy settings early (Node-level only — Electron sessions require app.whenReady)
@@ -734,6 +735,11 @@ app.whenReady().then(async () => {
       oauthFlowStore = instance.oauthFlowStore
       moduleSink = instance.wsServer.push.bind(instance.wsServer)
       moduleClientResolver = resolveClientId
+      bindAntigravityMenuHost({
+        sessionManager: instance.sessionManager,
+        onConnectionsChanged: () => instance.wsServer.push(RPC_CHANNELS.llmConnections.CHANGED, { to: 'all' }),
+        onMenuChanged: () => { void rebuildMenu() },
+      })
 
       // -----------------------------------------------------------------------
       // Messaging Gateway — attach the WS publisher, init local workspaces,
@@ -1234,6 +1240,9 @@ async function performQuitCleanup(): Promise<void> {
     // Clean up SessionManager resources (file watchers, timers, etc.)
     sessionManager.cleanup()
   }
+
+  disposeAntigravityMenu()
+  await disposeAntigravityService().catch(() => mainLog.warn('Antigravity cleanup failed'))
 
   // Clean up browser pane instances
   if (browserPaneManager) {

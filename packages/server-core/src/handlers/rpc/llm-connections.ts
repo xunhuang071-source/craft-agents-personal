@@ -14,6 +14,7 @@ import { pushTyped, type RpcServer } from '@craft-agent/server-core/transport'
 import type { HandlerDeps } from '../handler-deps'
 import { randomUUID } from 'node:crypto'
 import { CLIENT_OPEN_EXTERNAL } from '@craft-agent/server-core/transport'
+import { ensureConnectionReady } from '@craft-agent/shared/agent/connection-preflight'
 
 // Local OAuth state
 let copilotOAuthAbort: AbortController | null = null
@@ -453,6 +454,7 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
 
   // Get stored API key for an LLM connection (masked — for edit form display only)
   server.handle(RPC_CHANNELS.llmConnections.GET_API_KEY, async (_ctx, slug: string): Promise<string | null> => {
+    if (getLlmConnection(slug)?.managedProvider === 'antigravity' || slug === 'antigravity-sub-management') return null
     const manager = getCredentialManager()
     const key = await manager.getLlmApiKey(slug)
     if (!key) return null
@@ -466,6 +468,17 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
     try {
       // Check if this is an update or create
       const existing = getLlmConnection(connection.slug)
+      if (connection.managedProvider && existing?.managedProvider !== connection.managedProvider) {
+        return { success: false, error: 'Create this transport through the native Antigravity menu.' }
+      }
+      if (existing?.managedProvider === 'antigravity' && (
+        connection.managedProvider !== existing.managedProvider ||
+        connection.providerType !== existing.providerType ||
+        connection.authType !== existing.authType ||
+        connection.baseUrl !== existing.baseUrl ||
+        connection.customEndpoint?.api !== existing.customEndpoint?.api ||
+        connection.managedCredentialVersion !== existing.managedCredentialVersion
+      )) return { success: false, error: 'Manage this transport in the native Antigravity menu.' }
       if (existing) {
         // Update existing connection (can't change slug)
         const { slug: _slug, ...updates } = connection
@@ -509,6 +522,7 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
   server.handle(RPC_CHANNELS.llmConnections.DELETE, async (_ctx, slug: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const connection = getLlmConnection(slug)
+      if (connection?.managedProvider === 'antigravity') return { success: false, error: 'Disconnect this transport through the native Antigravity menu.' }
       if (!connection) {
         return { success: false, error: 'Connection not found' }
       }
@@ -532,6 +546,7 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
   // Test an LLM connection (validate credentials and connectivity with actual API call)
   server.handle(RPC_CHANNELS.llmConnections.TEST, async (_ctx, slug: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      await ensureConnectionReady(slug)
       const result = await validateStoredBackendConnection({
         slug,
         hostRuntime: buildBackendHostRuntimeContext(deps.platform),

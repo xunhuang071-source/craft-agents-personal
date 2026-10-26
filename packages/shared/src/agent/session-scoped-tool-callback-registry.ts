@@ -93,6 +93,8 @@ export interface SessionScopedToolCallbacks {
    * SessionManager to the invoking session's workspace.
    */
   pages?: import('@craft-agent/session-tools-core').PagesToolCallbacks;
+  /** Type-only completion for the already-transplanted MCP callbacks. */
+  mcpSources?: import('@craft-agent/session-tools-core').McpSourceToolCallbacks;
   /**
    * Decision-layer callback for the `decide` tool (Jev / System One). Wired by
    * SessionManager from `@craft-agent/shared/decisions`; gating (Settings switch,

@@ -129,6 +129,8 @@ export interface ModelDefinition {
   supportsThinking?: boolean;
   /** Explicit per-model image input capability hint, primarily for custom endpoints. */
   supportsImages?: boolean;
+  /** Explicit output limit reported by a managed/custom provider. */
+  maxOutputTokens?: number;
   /**
    * Adaptive thinking is always on and the Messages API rejects
    * `thinking: { type: 'disabled' }` (Fable/Mythos, Opus 5.5). Thinking depth is

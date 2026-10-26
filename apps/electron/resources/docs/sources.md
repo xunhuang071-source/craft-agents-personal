@@ -317,6 +317,8 @@ Model Context Protocol servers provide tools via HTTP/SSE.
 
 After creating, use `source_oauth_trigger` to authenticate.
 
+If the server only accepts loopback redirect URIs (client registration fails with an error like "only HTTP loopback callbacks"), add `"oauthRelay": false` to the `mcp` block. This skips the hosted OAuth relay and uses the local callback URL directly. Default (unset) uses the relay.
+
 **Bearer token authentication:**
 ```json
 {
@@ -391,6 +393,15 @@ With environment variables:
   }
 }
 ```
+
+**Resources and prompts:**
+
+Besides tools, an MCP server can publish *resources* (documents such as usage guides, schemas or files, addressed by URI) and *prompts* (reusable instructions or playbooks with arguments). They are not tools; read them with session tools:
+
+- `source_list_resources` / `source_read_resource`: list a source's resources and resource templates, read one by URI
+- `source_list_prompts` / `source_get_prompt`: list its prompts, get one with its arguments filled in
+
+`<sources>` notes once per session when a connected source offers either, and shows the server's own instructions if it sent any. If those instructions or the source's `guide.md` point at a guide resource, read it before using the source's tools. When writing `guide.md` for such a source, name the resource URIs worth reading.
 
 ### API Sources
 

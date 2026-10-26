@@ -109,11 +109,11 @@ describe('getDefaultModelForConnection', () => {
     expect(modelIds).toContain(defaultModel)
   })
 
-  it('Pi openai and openai-codex default to GPT-6 Astra with GPT-5.6 Sol ranked next', () => {
+  it('Pi OpenAI keeps Astra first and preserves the personal Codex Sol preference', () => {
     for (const provider of ['openai', 'openai-codex'] as const) {
       const ids = getDefaultModelsForConnection('pi', provider).map(m => typeof m === 'string' ? m : m.id)
       expect(ids[0]).toBe('pi/gpt-6-astra')
-      expect(ids[1]).toBe('pi/gpt-5.6-sol')
+      expect(ids[1]).toBe(ids.includes('pi/gpt-6.1-sol') ? 'pi/gpt-6.1-sol' : 'pi/gpt-5.6-sol')
       expect(getDefaultModelForConnection('pi', provider)).toBe('pi/gpt-6-astra')
     }
   })

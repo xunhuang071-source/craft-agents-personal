@@ -120,11 +120,18 @@ export interface BrowserLifecycleActionResult {
   reason?: string
 }
 
+export interface BrowserClickResult {
+  via: 'mouse' | 'script'
+  note?: string
+  /** A popup the click opened, or a sign-in window refused because another browser window has one open. */
+  popup?: string
+}
+
 export interface BrowserPaneFns {
   openPanel: (options?: { background?: boolean }) => Promise<{ instanceId: string }>;
   navigate: (url: string) => Promise<{ url: string; title: string }>;
   snapshot: () => Promise<{ url: string; title: string; nodes: Array<{ ref: string; role: string; name: string; value?: string; description?: string; focused?: boolean; checked?: boolean; disabled?: boolean }> }>;
-  click: (ref: string, options?: { waitFor?: 'none' | 'navigation' | 'network-idle'; timeoutMs?: number }) => Promise<void>;
+  click: (ref: string, options?: { waitFor?: 'none' | 'navigation' | 'network-idle'; timeoutMs?: number }) => Promise<BrowserClickResult | void>;
   clickAt: (x: number, y: number) => Promise<void>;
   drag: (x1: number, y1: number, x2: number, y2: number) => Promise<void>;
   fill: (ref: string, value: string) => Promise<void>;

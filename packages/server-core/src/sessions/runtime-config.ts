@@ -28,6 +28,8 @@ function normalizeCustomModels(connection: LlmConnection): Array<Record<string, 
         id: model.id,
         contextWindow: model.contextWindow,
         supportsImages: typeof model.supportsImages === 'boolean' ? model.supportsImages : undefined,
+        supportsThinking: model.supportsThinking,
+        maxTokens: model.maxOutputTokens,
       })
     })
     .sort((a, b) => String(a.id).localeCompare(String(b.id)))
@@ -55,6 +57,8 @@ export function buildRestartRequiredSignature(input: BackendRuntimeSignatureInpu
     slug: connection?.slug,
     providerType: connection?.providerType,
     piAuthProvider: connection?.piAuthProvider,
+    managedProvider: connection?.managedProvider,
+    managedCredentialVersion: connection?.managedCredentialVersion,
   }))
 }
 

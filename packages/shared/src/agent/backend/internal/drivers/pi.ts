@@ -220,11 +220,13 @@ export const piDriver: ProviderDriver = {
   provider: 'pi',
   buildRuntime: ({ context, providerOptions, resolvedPaths }) => ({
     paths: {
-      piServer: resolvedPaths.piServerPath,
+      piServer: context.connection?.managedProvider === 'antigravity'
+        ? resolvedPaths.antigravityPiServerPath : resolvedPaths.piServerPath,
       interceptor: resolvedPaths.interceptorBundlePath,
       node: resolvedPaths.nodeRuntimePath,
     },
     piAuthProvider: providerOptions?.piAuthProvider || context.connection?.piAuthProvider,
+    managedProvider: context.connection?.managedProvider,
     baseUrl: context.connection?.baseUrl,
     customEndpoint: context.connection?.customEndpoint,
     customModels: context.connection?.models?.map(m => {
@@ -232,11 +234,13 @@ export const piDriver: ProviderDriver = {
       const supportsImages = typeof m.supportsImages === 'boolean'
         ? m.supportsImages
         : undefined;
-      if (m.contextWindow || supportsImages !== undefined) {
+      if (m.contextWindow || supportsImages !== undefined || m.supportsThinking !== undefined || m.maxOutputTokens !== undefined) {
         return {
           id: m.id,
           ...(m.contextWindow ? { contextWindow: m.contextWindow } : {}),
           ...(supportsImages !== undefined ? { supportsImages } : {}),
+          ...(m.supportsThinking !== undefined ? { supportsThinking: m.supportsThinking } : {}),
+          ...(m.maxOutputTokens !== undefined ? { maxTokens: m.maxOutputTokens } : {}),
         };
       }
       return m.id;

@@ -21,6 +21,19 @@ import type { ModelDefinition } from './models.ts';
 // PI MODEL DISCOVERY
 // ============================================
 
+// Preserve the user's installed Codex directory patch exactly (including 500K).
+// This matches the current formal config; no fields are added to other providers.
+const LOCAL_CODEX_SOL: ModelDefinition = {
+  id: 'pi/gpt-6.1-sol', name: 'GPT-6.1 Sol', shortName: 'GPT-6.1 Sol',
+  description: 'openai-codex model via Craft Agents Backend', provider: 'pi',
+  contextWindow: 500_000, supportsThinking: true,
+}
+function preserveLocalCodexModel(models: ModelDefinition[], provider?: string): ModelDefinition[] {
+  if (provider !== 'openai-codex') return models
+  return models.some(m => m.id === LOCAL_CODEX_SOL.id) ? models : [...models, { ...LOCAL_CODEX_SOL }]
+}
+
+
 /**
  * Convert a Pi SDK Model to our ModelDefinition format.
  */
@@ -90,18 +103,18 @@ export function getPiModelsForAuthProvider(piAuthProvider: string): ModelDefinit
   try {
     const models = getModels(piAuthProvider as Parameters<typeof getModels>[0]);
     if (models.length > 0) {
-      return models
+      return preserveLocalCodexModel(models
         .filter(m => !isExcludedPiModel(m.id))
         // Bedrock: exclude bare Claude models without region prefix — they're
         // always rejected by Bedrock which requires inference profiles (us.*/eu.*/global.*).
         // Regional variants from the same catalog are kept.
         .filter(m => piAuthProvider !== 'amazon-bedrock' || !isBareBedrockClaudeModel(m.id))
-        .map(piModelToDefinition);
+        .map(piModelToDefinition), piAuthProvider);
     }
   } catch {
     // Provider not recognized by SDK — fall through
   }
-  return [];
+  return preserveLocalCodexModel([], piAuthProvider);
 }
 
 /**
@@ -120,7 +133,7 @@ export function getAllPiModels(): ModelDefinition[] {
       // Skip providers that fail
     }
   }
-  return allModels;
+  return preserveLocalCodexModel(allModels, 'openai-codex');
 }
 
 // ============================================

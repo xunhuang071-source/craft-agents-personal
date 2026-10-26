@@ -1,3 +1,5 @@
+> **Wallee 个人版**：本仓库不跟随官方整包升级。请先读 [个人版说明](PERSONAL.md)，下载程序请使用 [私有 Releases](https://github.com/xunhuang071-source/craft-agents-personal/releases)。下文为保留的上游项目介绍，不作为本个人版的升级操作指南。
+
 <div align="center">
   <a href="https://trendshift.io/repositories/20714" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20714" alt="craft-ai-agents%2Fcraft-agents-oss | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
