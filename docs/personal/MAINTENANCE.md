@@ -78,9 +78,9 @@ bash scripts/build-native-antigravity-release.sh
 
 ## 图表定点更新（2026-10-29 已批准例外）
 
-本地候选 wallee-v1.1.0-rc.1 可以更新 renderer 与 host Mermaid 校验，但不得改动冻结 Pi/preload/interceptor。正式安装版仍为 wallee-v1.0.0，不自动安装或发布。
+本次定点更新已由用户手动安装并验收，正式版本为 wallee-v1.1.0。原 Pi/preload/interceptor 未改变；以后继续冻结新的 renderer 基线，不自动安装或发布。
 
-基线锁保存在 `docs/personal/baselines/wallee-v1.0.0.json`，必须用它核对原基础程序，不能用新 renderer 哈希验证旧基础包。新组件锁仍是根目录的 personal-release.json。
+本次原始构建基线锁保存在 `docs/personal/baselines/wallee-v1.0.0.json`；正式验收基线另存 `docs/personal/baselines/wallee-v1.1.0.json`。构建脚本默认使用后者校验当前正式程序，历史重建可用 `--baseline-lock` 指定前者并提供匹配的 `--base-app`。根目录 personal-release.json 是当前版本锁；--record-lock 只记录组件，不重置版本号。
 
 从仓库根目录操作：
 
@@ -89,7 +89,7 @@ bash scripts/build-native-antigravity-release.sh
 node scripts/personal-build-diagram-candidate.mjs --record-lock
 
 # 完成回归并提交源码和锁后，输出到从未使用的新目录。
-node scripts/personal-build-diagram-candidate.mjs --out "$PWD/native-artifacts/pele-rc1"
+node scripts/personal-build-diagram-candidate.mjs --out "$PWD/native-artifacts/new-candidate"
 ```
 
 脚本验证原程序、固定工具版本和引擎提交，只构建 main 与 renderer；重新构建的 managed Pi 仅作原哈希核对，不替换冻结代码。构建时明确清空生成目录中的旧 renderer chunks；新候选排除基础包旧 renderer，再复制新 renderer/main，保留其余基线文件，签名并生成全文件清单和候选清单。随后 personal-audit-candidate.py 比对全部文件，确认主可执行文件仅嵌入签名变化，并扫描应用文本资源；误报按文件哈希和匹配值摘要逐项绑定，不豁免整个 bundle 目录。不启动、不安装、不读 profile。
@@ -105,3 +105,10 @@ python3 scripts/personal-ui-tests/run-e2e.py
 真实 Pi 代理回归需显式指定 `CRAFT_PI_TEST_BUNDLE` 后运行 `scripts/personal-ui-tests/mermaid-proxy.test.ts`，分别测试原 Pi 与 Antigravity；仅本地模拟端点与临时目录，不使用真实授权。
 
 打包时要如实区分“单一活动绘图引擎”和冻结 Pi 中不可达的上游静态残留。后者清理属于额外引擎重建，不得借小改静默扩大范围。验收细节见 [PELE-REVIEW.md](PELE-REVIEW.md)。
+
+
+## wallee-v1.1.0 正式晋升记录
+
+2026-10-29 用户手动安装候选并确认满意，随后批准正式版本管理与私有 Release 发布。晋升仅更新源码记录、版本锁、标签和代码包，不重建、不重新签名、不替换正在使用的程序。正式包必须与该安装版的主程序、renderer、Pi、preload、interceptor 哈希相同。
+
+`frozenBaseAsset` 指向当前正式包，供后续普通后端维护使用；`rendererUpdate.baselineAsset` 保留原 1.0.0 构建来源。两个历史基线锁均保留，不覆盖旧版标签和资产。发行包只包含代码、校验清单和已脱离真实 profile 的验证摘要。

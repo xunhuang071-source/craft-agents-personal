@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "wallee-v1.1.0-rc.1",
+  "version": "wallee-v1.1.0",
   "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
@@ -32,8 +32,8 @@
   },
   "frozenBaseAsset": {
     "repository": "xunhuang071-source/craft-agents-personal",
-    "tag": "wallee-v1.0.0",
-    "asset": "Craft-Agents-wallee-v1.0.0-mac-arm64.zip",
+    "tag": "wallee-v1.1.0",
+    "asset": "Craft-Agents-wallee-v1.1.0-mac-arm64.zip",
     "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
   },
   "officialAutomaticUpdates": false,
@@ -45,6 +45,19 @@
     "scope": "Mermaid renderer, editor type detection, annotation overlay, host validation handler",
     "retainedPiStaticCode": "Frozen Pi bundles retain upstream static validator code, but registered session tools proxy to the host Pele handler; both paths are integration-tested.",
     "installedAutomatically": false,
-    "published": false
+    "baselineAsset": {
+      "repository": "xunhuang071-source/craft-agents-personal",
+      "tag": "wallee-v1.0.0",
+      "asset": "Craft-Agents-wallee-v1.0.0-mac-arm64.zip",
+      "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
+    }
+  },
+  "acceptance": {
+    "version": "wallee-v1.1.0",
+    "candidateVersion": "wallee-v1.1.0-rc.1",
+    "date": "2026-10-29",
+    "installedByUser": true,
+    "manualMermaidAndAnnotationCheck": "passed",
+    "codeChangedAfterAcceptance": false
   }
 }

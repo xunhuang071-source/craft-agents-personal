@@ -10,13 +10,13 @@ const options = {}
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i]
   if (key === '--record-lock') options.record = true
-  else if (['--base-app', '--out'].includes(key) && process.argv[i + 1]) options[key.slice(2)] = process.argv[++i]
-  else throw Error('Use [--base-app PATH] [--out PATH] [--record-lock]')
+  else if (['--base-app', '--baseline-lock', '--out'].includes(key) && process.argv[i + 1]) options[key.slice(2)] = process.argv[++i]
+  else throw Error('Use [--base-app PATH] [--baseline-lock PATH] [--out PATH] [--record-lock]')
 }
 const lockPath = path.join(root, 'personal-release.json')
 const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'))
 const base = fs.realpathSync(options['base-app'] || '/Applications/Craft Agents.app')
-const baselineLock = path.join(root, 'docs/personal/baselines/wallee-v1.0.0.json')
+const baselineLock = path.resolve(root, options['baseline-lock'] || 'docs/personal/baselines/wallee-v1.1.0.json')
 const baseline = JSON.parse(fs.readFileSync(baselineLock, 'utf8'))
 const build = path.join(root, '.personal-build/pele')
 const code = path.join(build, 'candidate-code')
@@ -56,15 +56,15 @@ const managedPiSha256 = sha(path.join(code, 'managed-pi.js'))
 const rendererTreeSha256 = tree(renderer)
 if (managedPiSha256 !== baseline.expectedBuild.managedPiSha256) throw Error('Managed Pi must remain byte-identical')
 if (options.record) {
-  lock.version = 'wallee-v1.1.0-rc.1'
   lock.expectedBuild.mainSha256 = mainSha256
   lock.frozen.rendererTreeSha256 = rendererTreeSha256
   lock.rendererUpdate = {
     renderer: 'pele@1.12.0', interactions: 'one app-owned zoom/selection/annotation layer',
-    baselineLock: 'docs/personal/baselines/wallee-v1.0.0.json',
+    baselineLock: path.relative(root, baselineLock),
+    baselineAsset: baseline.frozenBaseAsset,
     scope: 'Mermaid renderer, editor type detection, annotation overlay, host validation handler',
     retainedPiStaticCode: 'Frozen Pi bundles retain upstream static validator code, but registered session tools proxy to the host Pele handler; both paths are integration-tested.',
-    installedAutomatically: false, published: false,
+    installedAutomatically: false,
   }
   fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n')
   console.log(JSON.stringify({ recorded: true, mainSha256, managedPiSha256, rendererTreeSha256 }))

@@ -1,10 +1,10 @@
 # Wallee 的 Craft Agents 个人版
 
-**当前正式版：wallee-v1.0.0（2026-10-26）**
+**当前正式版：wallee-v1.1.0（2026-10-29）**
 
-本地待验收候选：**wallee-v1.1.0-rc.1（Pele 与展开批注）**，尚未安装或发布。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
+Pele 与展开批注已由用户手动安装并验收通过；正式版与验收候选代码哈希一致，无需重复安装。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
 
-- [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.0.0)
+- [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.1.0)
 - [版本日志](docs/personal/CHANGELOG.md)
 - [维护手册](docs/personal/MAINTENANCE.md)
 - [准确组件清单](personal-release.json)
@@ -21,7 +21,8 @@
 
 ## 当前版本保留与新增
 
-- 保留 0.14.1 界面、原 Pi 1.1 引擎、GPT-6.1 Sol 500K、oauthRelay 与此前后端改造。
+- 在原界面结构上定点接入 Pele，统一图表显示、输入识别与校验，修复展开后原地批注。
+- 保留原 Pi 1.1 引擎、GPT-6.1 Sol 500K、oauthRelay 与此前后端改造。
 - 新增原生菜单 Antigravity 接入，以及独立管理的 CLIProxy / Pi 1.1 适配器。
 - 官方自动更新保持关闭。账户授权、API 密钥和历史对话仍由本机原位置保存，不进入此仓库或发布包。
 
@@ -29,4 +30,4 @@
 
 Git 保存源码变更；Release 保存正式安装包。无需为每次小改复制完整源码或个人数据。需要回退时下载已知兼容的旧版程序，仅替换应用，不回灌旧对话。
 
-本次首次版本管理只固定当前已经安装的程序，不要求你重装。历史上游版本的手工备份不是今后的版本管理方式。
+本次正式收尾固定已经安装并验收的程序，不要求重装。历史上游版本的手工备份不是今后的版本管理方式。
