@@ -80,3 +80,29 @@ describe('resolveTextAnnotations', () => {
     expect(result.unresolved[0]?.reason).toBe('quote-not-found')
   })
 })
+
+
+describe('renderer text drift safety', () => {
+  it('rejects an in-bounds position that no longer matches its quote', () => {
+    const a = makeAnnotation([{ type: 'text-position', start: 0, end: 4 }, { type: 'text-quote', exact: 'beta' }])
+    expect(resolveTextAnnotations('alpha beta gamma', [a]).resolved[0]?.range).toEqual({ start: 6, end: 10 })
+  })
+  it('does not choose the first of several equally matching labels', () => {
+    const a = makeAnnotation([{ type: 'text-position', start: 999, end: 1000 }, { type: 'text-quote', exact: '重复标签' }])
+    expect(resolveTextAnnotations('重复标签其他文字重复标签', [a]).resolved).toHaveLength(0)
+  })
+  it('verifies context even when repeated text still matches the old offset', () => {
+    const a = makeAnnotation([{ type: 'text-position', start: 0, end: 4 }, { type: 'text-quote', exact: '重复标签', prefix: '第二个：' }])
+    expect(resolveTextAnnotations('重复标签第二个：重复标签', [a]).resolved[0]?.range).toEqual({ start: 8, end: 12 })
+  })
+  it('leaves removed text unresolved instead of silently moving its annotation', () => {
+    const a = makeAnnotation([{ type: 'text-position', start: 0, end: 3 }, { type: 'text-quote', exact: '旧节点' }])
+    expect(resolveTextAnnotations('新节点', [a]).unresolved).toHaveLength(1)
+  })
+})
+
+
+it('recovers a unique quote when the renderer changed surrounding label order', () => {
+  const a = makeAnnotation([{ type: 'text-position', start: 1, end: 5 }, { type: 'text-quote', exact: '图后文字', prefix: '旧节点顺序', suffix: '旧格式' }])
+  expect(resolveTextAnnotations('新节点顺序图后文字新格式', [a]).resolved[0]?.range).toEqual({ start: 5, end: 9 })
+})

@@ -1,19 +1,4 @@
-const MERMAID_DIAGRAM_PREFIXES = [
-  'graph ',
-  'flowchart ',
-  'sequenceDiagram',
-  'classDiagram',
-  'stateDiagram',
-  'stateDiagram-v2',
-  'erDiagram',
-  'journey',
-  'gantt',
-  'pie',
-  'mindmap',
-  'timeline',
-  'xychart',
-  'xychart-beta',
-]
+import { detectType } from 'pele'
 
 /** Remove Mermaid YAML frontmatter (`--- ... ---`) from the start of a diagram. */
 export function stripMermaidFrontmatter(code: string): string {
@@ -54,7 +39,8 @@ export function getFirstMermaidDiagramLine(code: string): string | null {
 }
 
 export function looksLikeMermaidSource(code: string): boolean {
-  const firstMeaningful = getFirstMermaidDiagramLine(code)
-  if (!firstMeaningful) return false
-  return MERMAID_DIAGRAM_PREFIXES.some(prefix => firstMeaningful.startsWith(prefix))
+  if (code.length > 50_000) return false
+  // Use the same engine's type detector rather than maintaining a second,
+  // incomplete list of Mermaid prefixes for paste and file import.
+  try { return detectType(code.trimStart()) != null } catch { return false }
 }

@@ -1,3 +1,5 @@
+import { MermaidAnnotationContext } from '../annotations/MermaidAnnotationContext'
+import { captureMermaidSelection } from '../annotations/mermaid-annotations'
 import * as React from 'react'
 import { useMemo, useEffect, useRef, useCallback, useState } from 'react'
 import i18n from 'i18next'
@@ -1687,6 +1689,7 @@ export function ResponseCard({
   const [copied, setCopied] = useState(false)
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [diagramOverlayOpen, setDiagramOverlayOpen] = useState(false)
   // Dark mode detection - scroll fade only shown in dark mode
   const [isDarkMode, setIsDarkMode] = useState(false)
   // Pending text selection waiting for explicit follow-up action
@@ -1727,7 +1730,9 @@ export function ResponseCard({
     hasMessageId: !!messageId,
     isStreaming,
   })
-  const allowAnnotationIsland = annotationInteractionMode === 'interactive'
+  const allowAnnotationIsland = annotationInteractionMode === 'interactive' && !isFullscreen && !diagramOverlayOpen
+  const annotationInteractionEnabledRef = useRef(false)
+  annotationInteractionEnabledRef.current = canAnnotate && allowAnnotationIsland
 
   // Detect dark mode from document class and listen for changes
   useEffect(() => {
@@ -2125,7 +2130,27 @@ export function ResponseCard({
     markDeleteSuccess()
   }, [onRemoveAnnotation, messageId, activeAnnotationDetail, markDeleteSuccess])
 
+  const onDiagramOpenChange = useCallback((open: boolean) => {
+    annotationInteractionEnabledRef.current = !open && !isFullscreen && canAnnotate
+    selectionStartedInContentRef.current = false
+    closeSelectionMenu()
+    clearDomSelection()
+    setDiagramOverlayOpen(open)
+  }, [isFullscreen, canAnnotate, closeSelectionMenu])
+
+  useEffect(() => {
+    if (!isFullscreen && !diagramOverlayOpen) return
+    selectionStartedInContentRef.current = false
+    closeSelectionMenu()
+  }, [isFullscreen, diagramOverlayOpen, closeSelectionMenu])
+
+  const diagramHost = useMemo(() => onAddAnnotation && messageId && canAnnotate && annotationInteractionMode === 'interactive' ? ({
+    messageId, sessionId, annotations, sourceRootRef: contentLayerRef,
+    onAddAnnotation, onRemoveAnnotation, onUpdateAnnotation, sendMessageKey, onDiagramOpenChange,
+  }) : null, [messageId, sessionId, annotations, onAddAnnotation, onRemoveAnnotation, onUpdateAnnotation, sendMessageKey, onDiagramOpenChange, canAnnotate, annotationInteractionMode])
+
   const handleSelectionPointerDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!annotationInteractionEnabledRef.current || !contentLayerRef.current?.contains(event.target as Node)) return
     selectionStartedInContentRef.current = true
     const snapshot = {
       x: event.clientX,
@@ -2142,6 +2167,7 @@ export function ResponseCard({
     if (!root) return
 
     requestAnimationFrame(() => {
+      if (!root.isConnected || !annotationInteractionEnabledRef.current) return
       const selection = window.getSelection()
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
         closeSelectionMenu()
@@ -2243,6 +2269,7 @@ export function ResponseCard({
         selectedText,
         prefix,
         suffix,
+        mermaid: captureMermaidSelection(range),
         anchorX,
         anchorY,
       })
@@ -2251,7 +2278,7 @@ export function ResponseCard({
   }, [annotations, closeSelectionMenu, triggerSelectionMenuEntryReplay, openFromSelection])
 
   const handleTextSelection = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!canAnnotate || !onAddAnnotation || !messageId) return
+    if (!canAnnotate || !onAddAnnotation || !messageId || !annotationInteractionEnabledRef.current || !selectionStartedInContentRef.current) return
     const root = contentLayerRef.current
     if (!root) return
 
@@ -2384,7 +2411,10 @@ export function ResponseCard({
       draft={followUpDraft}
       onDraftChange={setFollowUpDraft}
       onOpenFollowUp={handleOpenFollowUpView}
-      onCancel={handleCancelFollowUp}
+      onCancel={() => {
+        if (selectionMenuView === 'compact') { clearDomSelection(); closeSelectionMenu() }
+        else handleCancelFollowUp()
+      }}
       onRequestBack={handleSelectionMenuRequestBack}
       onRequestEdit={handleRequestFollowUpEdit}
       onSubmit={handleSubmitFollowUp}
@@ -2502,7 +2532,8 @@ export function ResponseCard({
               }),
             }}
           >
-            <div ref={contentLayerRef} className="relative">
+            <div ref={contentLayerRef} className="relative" data-ca-annotation-root="true">
+              <MermaidAnnotationContext.Provider value={diagramHost}>
               <Markdown
                 mode="minimal"
                 onUrlClick={onOpenUrl}
@@ -2510,6 +2541,7 @@ export function ResponseCard({
               >
                 {text}
               </Markdown>
+              </MermaidAnnotationContext.Provider>
               {annotationOverlayLayer}
             </div>
           </div>
@@ -2648,7 +2680,8 @@ export function ResponseCard({
             }),
           }}
         >
-          <div ref={contentLayerRef} className="relative">
+          <div ref={contentLayerRef} className="relative" data-ca-annotation-root="true">
+            <MermaidAnnotationContext.Provider value={diagramHost}>
             <Markdown
               mode="minimal"
               onUrlClick={onOpenUrl}
@@ -2656,6 +2689,7 @@ export function ResponseCard({
             >
               {displayedText}
             </Markdown>
+            </MermaidAnnotationContext.Provider>
             {annotationOverlayLayer}
           </div>
         </div>

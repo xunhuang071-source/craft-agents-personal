@@ -63,20 +63,28 @@ function findQuoteRange(
   if (!quote.exact) return null
 
   // First try exact matching without normalization (fast path).
+  const matches: Array<{ start: number; end: number }> = []
+  const exactMatches: Array<{ start: number; end: number }> = []
   let searchIndex = fullText.indexOf(quote.exact)
   while (searchIndex !== -1) {
     const candidateStart = searchIndex
     const candidateEnd = candidateStart + quote.exact.length
+    exactMatches.push({ start: candidateStart, end: candidateEnd })
 
     const prefixOk = !quote.prefix || fullText.slice(Math.max(0, candidateStart - quote.prefix.length), candidateStart) === quote.prefix
     const suffixOk = !quote.suffix || fullText.slice(candidateEnd, candidateEnd + quote.suffix.length) === quote.suffix
 
     if (prefixOk && suffixOk) {
-      return { start: candidateStart, end: candidateEnd }
+      matches.push({ start: candidateStart, end: candidateEnd })
     }
 
     searchIndex = fullText.indexOf(quote.exact, searchIndex + 1)
   }
+
+  if (matches.length > 0) return matches.length === 1 ? matches[0]! : null
+  // A renderer may reorder neighboring labels without changing the quoted text.
+  // Only a unique quote can survive that drift without inventing an anchor.
+  if (exactMatches.length === 1) return exactMatches[0]!
 
   // Fallback: normalized matching for minor whitespace drift.
   const normalizedFull = normalizeWhitespaceWithMap(fullText)
@@ -100,14 +108,14 @@ function findQuoteRange(
       const endMapIndex = normalizedEnd - 1
       const originalLast = normalizedFull.map[endMapIndex]
       if (originalStart != null && originalLast != null) {
-        return { start: originalStart, end: originalLast + 1 }
+        matches.push({ start: originalStart, end: originalLast + 1 })
       }
     }
 
     normalizedIndex = normalizedFull.text.indexOf(normalizedExact, normalizedIndex + 1)
   }
 
-  return null
+  return matches.length === 1 ? matches[0]! : null
 }
 
 export function resolveTextAnnotations(
@@ -128,6 +136,9 @@ export function resolveTextAnnotations(
       continue
     }
 
+    const quote = selectors.find(s => s.type === 'text-quote') as Extract<
+      AnnotationV1['target']['selectors'][number], { type: 'text-quote' }
+    > | undefined
     const position = selectors.find(s => s.type === 'text-position') as Extract<
       AnnotationV1['target']['selectors'][number],
       { type: 'text-position' }
@@ -139,7 +150,12 @@ export function resolveTextAnnotations(
       Number.isInteger(position.end) &&
       position.start >= 0 &&
       position.end > position.start &&
-      position.end <= fullText.length
+      position.end <= fullText.length &&
+      (!quote?.exact || (
+        fullText.slice(position.start, position.end) === quote.exact &&
+        (!quote.prefix || fullText.slice(Math.max(0, position.start - quote.prefix.length), position.start) === quote.prefix) &&
+        (!quote.suffix || fullText.slice(position.end, position.end + quote.suffix.length) === quote.suffix)
+      ))
     ) {
       resolved.push({
         annotation,
@@ -148,11 +164,6 @@ export function resolveTextAnnotations(
       })
       continue
     }
-
-    const quote = selectors.find(s => s.type === 'text-quote') as Extract<
-      AnnotationV1['target']['selectors'][number],
-      { type: 'text-quote' }
-    > | undefined
 
     if (!quote?.exact) {
       unresolved.push({ annotation, reason: 'invalid-position' })

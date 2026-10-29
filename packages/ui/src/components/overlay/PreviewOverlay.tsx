@@ -15,8 +15,10 @@
  * Used by: CodePreviewOverlay, TerminalPreviewOverlay, GenericOverlay, etc.
  */
 
-import { useEffect, type ReactNode } from 'react'
-import * as ReactDOM from 'react-dom'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { OverlayPortalContext, dispatchOverlayAnnotationEscape } from '../../lib/overlay-portal-context'
+import { getDismissibleLayerBridge } from '../../lib/dismissible-layer-bridge'
+import * as Dialog from '@radix-ui/react-dialog'
 import { type LucideIcon } from 'lucide-react'
 import { useOverlayMode, OVERLAY_LAYOUT } from '../../lib/layout'
 import { FullscreenOverlayBase } from './FullscreenOverlayBase'
@@ -92,20 +94,18 @@ export function PreviewOverlay({
   const bgClass = className || OVERLAY_BG
   const responsiveMode = useOverlayMode()
   const isModal = responsiveMode === 'modal'
+  const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const modalId = useRef(`preview-modal-${Math.random().toString(36).slice(2)}`)
 
-  // Handle Escape key for modal mode only (fullscreen mode uses FullscreenOverlayBase which handles ESC)
+  // Register modal and fullscreen previews in the same dismissal stack.
   useEffect(() => {
-    if (!isOpen || !isModal) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isModal, onClose])
+    if (!isOpen || !isModal || embedded) return
+    return getDismissibleLayerBridge()?.registerLayer({
+      id: modalId.current, type: 'modal', priority: 100, close: () => onCloseRef.current(),
+    })
+  }, [isOpen, isModal, embedded])
 
   if (!isOpen && !embedded) return null
 
@@ -185,13 +185,35 @@ export function PreviewOverlay({
   }
 
   // Modal mode - uses its own portal with backdrop click to close
-  return ReactDOM.createPortal(
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center ${OVERLAY_LAYOUT.modalBackdropClass}`}
+  return (
+    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog.Portal>
+    <Dialog.Content
+      className={`fixed inset-0 flex items-center justify-center outline-none ${OVERLAY_LAYOUT.modalBackdropClass}`}
+      style={{ zIndex: 'var(--z-fullscreen, 350)' }}
+      onOpenAutoFocus={(event) => event.preventDefault()}
+      onEscapeKeyDown={(event) => {
+            if (event.defaultPrevented) return
+        const bridge = getDismissibleLayerBridge()
+        if (bridge?.handleEscape() || dispatchOverlayAnnotationEscape(portalHost)) {
+          event.preventDefault()
+          event.stopPropagation()
+
+        }
+      }}
+      data-ca-overlay-surface="true"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title || typeBadge.label}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => {
+        e.stopPropagation()
         if (e.target === e.currentTarget) onClose()
       }}
     >
+      <Dialog.Title className="sr-only">{title || typeBadge.label}</Dialog.Title>
+      <OverlayPortalContext.Provider value={portalHost}>
       <div
         className={`flex flex-col ${bgClass} shadow-3xl overflow-hidden smooth-corners`}
         style={{
@@ -204,7 +226,10 @@ export function PreviewOverlay({
         {header}
         {contentArea}
       </div>
-    </div>,
-    document.body
+      <div ref={setPortalHost} data-ca-overlay-portals="true" />
+      </OverlayPortalContext.Provider>
+    </Dialog.Content>
+    </Dialog.Portal>
+    </Dialog.Root>
   )
 }

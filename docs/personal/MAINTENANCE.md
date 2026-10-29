@@ -74,3 +74,34 @@ bash scripts/build-native-antigravity-release.sh
 官方仓库仅作为参考来源。用户没要求，不主动追版本；不自动合并或推送官方仓库。不恢复 app-update.yml。继承的自动化模板保存在 docs/upstream-workflows，不放在活动的 .github/workflows 目录；Actions 保持禁用，普通发布不要求扩大 workflow 授权。
 
 技能 craft-fork-sync 是此文档的入口，历史 PLAYBOOK 仅供查旧方法。项目版本记录只写本仓库，不写 Notion，不将个人数据放进 Git。
+
+
+## 图表定点更新（2026-10-29 已批准例外）
+
+本地候选 wallee-v1.1.0-rc.1 可以更新 renderer 与 host Mermaid 校验，但不得改动冻结 Pi/preload/interceptor。正式安装版仍为 wallee-v1.0.0，不自动安装或发布。
+
+基线锁保存在 `docs/personal/baselines/wallee-v1.0.0.json`，必须用它核对原基础程序，不能用新 renderer 哈希验证旧基础包。新组件锁仍是根目录的 personal-release.json。
+
+从仓库根目录操作：
+
+```sh
+# 仅在审查过 renderer/校验改动并取得批准后记录新的 main/renderer 哈希。
+node scripts/personal-build-diagram-candidate.mjs --record-lock
+
+# 完成回归并提交源码和锁后，输出到从未使用的新目录。
+node scripts/personal-build-diagram-candidate.mjs --out "$PWD/native-artifacts/pele-rc1"
+```
+
+脚本验证原程序、固定工具版本和引擎提交，只构建 main 与 renderer；重新构建的 managed Pi 仅作原哈希核对，不替换冻结代码。新目录排除旧 renderer chunks，再复制新 renderer/main，保留其余基线文件，签名并生成全文件清单和候选清单。不启动、不安装、不读 profile。
+
+测试服务器只监听本机：
+
+```sh
+# Bun 路径采用已校验基础程序中的 vendor/bun/bun（1.3.9）。
+/path/to/bun node_modules/vite/bin/vite.js --config scripts/personal-ui-tests/vite.config.ts
+python3 scripts/personal-ui-tests/run-e2e.py
+```
+
+真实 Pi 代理回归需显式指定 `CRAFT_PI_TEST_BUNDLE` 后运行 `scripts/personal-ui-tests/mermaid-proxy.test.ts`，分别测试原 Pi 与 Antigravity；仅本地模拟端点与临时目录，不使用真实授权。
+
+打包时要如实区分“单一活动绘图引擎”和冻结 Pi 中不可达的上游静态残留。后者清理属于额外引擎重建，不得借小改静默扩大范围。验收细节见 [PELE-REVIEW.md](PELE-REVIEW.md)。

@@ -34,6 +34,8 @@ export function computeFitScale(
 
 interface UseRichBlockInteractionsOptions extends RichBlockInteractionOptions {
   containerRef: RefObject<HTMLDivElement | null>
+  /** Diagram labels remain selectable; blank space and Alt/middle drag pan. */
+  selectableText?: boolean
 }
 
 export function useRichBlockInteractions({
@@ -44,6 +46,7 @@ export function useRichBlockInteractions({
   zoomStepFactor = RICH_BLOCK_DEFAULTS.zoomStepFactor,
   wheelSensitivity = RICH_BLOCK_DEFAULTS.wheelSensitivity,
   keyboardShortcuts = true,
+  selectableText = false,
 }: UseRichBlockInteractionsOptions) {
   const [scale, setScale] = useState(1)
   const [translate, setTranslate] = useState({ x: 0, y: 0 })
@@ -91,8 +94,12 @@ export function useRichBlockInteractions({
   }, [containerRef, minScale, maxScale, reset])
 
   const onMouseDown = useCallback((e: ReactMouseEvent) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 && e.button !== 1) return
+    const target = e.target instanceof Element ? e.target : null
+    if (target?.closest('button, input, textarea, [contenteditable="true"], [data-ca-annotation-island]')) return
+    if (selectableText && e.button === 0 && !e.altKey && target?.closest('text, tspan, foreignObject')) return
     e.preventDefault()
+    if (selectableText) window.getSelection()?.removeAllRanges()
     isDraggingRef.current = true
     setIsDragging(true)
     setIsAnimating(false)
@@ -101,11 +108,13 @@ export function useRichBlockInteractions({
       translateAtDragStartRef.current = { x: t.x, y: t.y }
       return t
     })
-  }, [])
+  }, [selectableText])
 
-  const onDoubleClick = useCallback(() => {
+  const onDoubleClick = useCallback((event?: ReactMouseEvent) => {
+    const target = event?.target instanceof Element ? event.target : null
+    if (selectableText && target?.closest('text, tspan, foreignObject, [data-ca-annotation-island]')) return
     reset()
-  }, [reset])
+  }, [reset, selectableText])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -124,16 +133,16 @@ export function useRichBlockInteractions({
     }
 
     window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('mouseup', handleMouseUp, true)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('mouseup', handleMouseUp, true)
     }
   }, [])
 
   useEffect(() => {
     const container = containerRef.current
-    if (!container) return
+    if (!isOpen || !container) return
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
@@ -159,12 +168,13 @@ export function useRichBlockInteractions({
 
     container.addEventListener('wheel', handleWheel, { passive: false })
     return () => container.removeEventListener('wheel', handleWheel)
-  }, [containerRef, minScale, maxScale, wheelSensitivity])
+  }, [isOpen, containerRef, minScale, maxScale, wheelSensitivity])
 
   useEffect(() => {
     if (!isOpen || !keyboardShortcuts) return
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.target instanceof Element) && e.target.closest('input, textarea, [contenteditable="true"], [data-ca-annotation-island]')) return
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
 

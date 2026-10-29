@@ -2,6 +2,8 @@
 
 **当前正式版：wallee-v1.0.0（2026-10-26）**
 
+本地待验收候选：**wallee-v1.1.0-rc.1（Pele 与展开批注）**，尚未安装或发布。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
+
 - [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.0.0)
 - [版本日志](docs/personal/CHANGELOG.md)
 - [维护手册](docs/personal/MAINTENANCE.md)

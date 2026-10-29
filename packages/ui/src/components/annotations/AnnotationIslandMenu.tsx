@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { OverlayPortalContext, OVERLAY_ANNOTATION_ESCAPE } from '../../lib/overlay-portal-context'
 import * as ReactDOM from 'react-dom'
 import { CornerDownRight } from 'lucide-react'
 import {
@@ -63,8 +64,20 @@ export function AnnotationIslandMenu({
   usePortal = true,
 }: AnnotationIslandMenuProps) {
   const { t } = useTranslation()
+  const overlayPortal = React.useContext(OverlayPortalContext)
   const menuRef = React.useRef<HTMLDivElement>(null)
   const [activeViewSize, setActiveViewSize] = React.useState<{ width: number; height: number } | null>(null)
+
+  React.useEffect(() => {
+    if (!overlayPortal || !isVisible) return
+    const handleEscape = (event: Event) => {
+      if (event.defaultPrevented) return
+      if (!onRequestBack?.()) onCancel()
+      event.preventDefault()
+    }
+    overlayPortal.addEventListener(OVERLAY_ANNOTATION_ESCAPE, handleEscape)
+    return () => overlayPortal.removeEventListener(OVERLAY_ANNOTATION_ESCAPE, handleEscape)
+  }, [overlayPortal, isVisible, onRequestBack, onCancel])
 
   // Keep blocker behind the island menu when consumers pass a custom numeric zIndex
   // (for example TurnCard uses zIndex=50). Otherwise fall back to the semantic island token.
@@ -88,6 +101,7 @@ export function AnnotationIslandMenu({
     <div
       ref={menuRef}
       data-ca-annotation-island="true"
+      data-ca-island-visible={isVisible ? 'true' : 'false'}
       className="fixed"
       style={{
         zIndex,
@@ -151,5 +165,5 @@ export function AnnotationIslandMenu({
     </div>
   )
 
-  return usePortal ? ReactDOM.createPortal(menuNode, document.body) : menuNode
+  return overlayPortal || usePortal ? ReactDOM.createPortal(menuNode, overlayPortal ?? document.body) : menuNode
 }

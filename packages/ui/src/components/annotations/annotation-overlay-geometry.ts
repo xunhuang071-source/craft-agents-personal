@@ -1,10 +1,10 @@
 import type { AnnotationV1 } from '@craft-agent/core'
 import { resolveTextAnnotations } from '../markdown/annotation-resolver'
+import { resolveDomTextAnnotations } from './mermaid-annotations'
 import {
   annotationColorToCss,
 } from './annotation-style-tokens'
 import {
-  getCanonicalText,
   getClientRectsForOffsets,
   consolidateRectsByLine,
   type AnnotationOverlayRect,
@@ -42,8 +42,7 @@ export function computeAnnotationOverlayGeometry({
     return { rects: [], chips: [], unresolved: [] }
   }
 
-  const fullText = getCanonicalText(root)
-  const resolution = resolveTextAnnotations(fullText, renderedAnnotations)
+  const resolution = resolveDomTextAnnotations(root, renderedAnnotations)
   const annotationIndexById = new Map((persistedAnnotations ?? []).map((annotation, idx) => [annotation.id, idx + 1]))
   const rootRect = root.getBoundingClientRect()
 

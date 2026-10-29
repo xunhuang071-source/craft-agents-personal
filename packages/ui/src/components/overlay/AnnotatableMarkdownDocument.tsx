@@ -1,4 +1,7 @@
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import { MermaidAnnotationContext } from '../annotations/MermaidAnnotationContext'
+import { captureMermaidSelection } from '../annotations/mermaid-annotations'
 import { Markdown } from '../markdown'
 import type { AnnotationV1 } from '@craft-agent/core'
 import { type IslandTransitionConfig } from '../ui'
@@ -46,6 +49,9 @@ import { applyBlockAnnotationMarker, clearBlockAnnotationMarkers } from '../anno
 
 export interface AnnotatableMarkdownDocumentProps {
   content: string
+  /** A diagram view can reuse the exact same annotation controller and menu. */
+  children?: React.ReactNode
+  geometryKey?: string
   messageId: string
   sessionId?: string
   annotations?: AnnotationV1[]
@@ -62,6 +68,8 @@ export interface AnnotatableMarkdownDocumentProps {
 
 export function AnnotatableMarkdownDocument({
   content,
+  children,
+  geometryKey,
   messageId,
   sessionId,
   annotations,
@@ -75,7 +83,10 @@ export function AnnotatableMarkdownDocument({
   openAnnotationRequest,
   isStreaming = false,
 }: AnnotatableMarkdownDocumentProps) {
-  const canAnnotate = canAnnotateMessage({
+  const { t } = useTranslation()
+  const [unresolvedCount, setUnresolvedCount] = React.useState(0)
+  const [childOverlayOpen, setChildOverlayOpen] = React.useState(false)
+  const canAnnotate = !childOverlayOpen && canAnnotateMessage({
     hasAddAnnotationHandler: !!onAddAnnotation,
     hasMessageId: !!messageId,
     isStreaming,
@@ -126,6 +137,8 @@ export function AnnotatableMarkdownDocument({
   const lastPointerRef = React.useRef<PointerSnapshot | null>(null)
   const dragStartPointerRef = React.useRef<PointerSnapshot | null>(null)
   const selectionStartedInContentRef = React.useRef(false)
+  const interactionEnabledRef = React.useRef(canAnnotate)
+  interactionEnabledRef.current = canAnnotate
 
   const closeSelectionMenu = React.useCallback(() => {
     closeAll()
@@ -137,6 +150,20 @@ export function AnnotatableMarkdownDocument({
     if (!element) return false
     return !!element.closest('[data-ca-annotation-island="true"]')
   }, [])
+
+  const onDiagramOpenChange = React.useCallback((open: boolean) => {
+    interactionEnabledRef.current = !open && !isStreaming
+    selectionStartedInContentRef.current = false
+    dragStartPointerRef.current = null
+    closeSelectionMenu()
+    clearDomSelection()
+    setChildOverlayOpen(open)
+  }, [closeSelectionMenu, isStreaming])
+
+  const diagramHost = React.useMemo(() => onAddAnnotation && !isStreaming ? ({
+    messageId, sessionId, annotations, sourceRootRef: contentLayerRef,
+    onAddAnnotation, onRemoveAnnotation, onUpdateAnnotation, sendMessageKey, onDiagramOpenChange,
+  }) : null, [messageId, sessionId, annotations, onAddAnnotation, onRemoveAnnotation, onUpdateAnnotation, sendMessageKey, onDiagramOpenChange, isStreaming])
 
   const triggerSelectionMenuEntryReplay = React.useCallback(() => {
     setSelectionMenuShowNonce((prev) => prev + 1)
@@ -167,6 +194,7 @@ export function AnnotatableMarkdownDocument({
   React.useEffect(() => {
     const root = contentLayerRef.current
     if (!root) {
+      setUnresolvedCount(0)
       setAnnotationOverlay({ rects: [], chips: [] })
       return
     }
@@ -178,6 +206,7 @@ export function AnnotatableMarkdownDocument({
         renderedAnnotations,
         persistedAnnotations: annotations,
       })
+      setUnresolvedCount(geometry.unresolved.filter(item => item.annotation.target.selectors.some(selector => selector.type === 'text-position' || selector.type === 'text-quote')).length)
       return { rects: geometry.rects, chips: geometry.chips }
     }
 
@@ -186,6 +215,7 @@ export function AnnotatableMarkdownDocument({
       clearBlockAnnotationMarkers(root)
 
       if (!renderedAnnotations.length) {
+        setUnresolvedCount(0)
         setAnnotationOverlay({ rects: [], chips: [] })
         return
       }
@@ -224,7 +254,7 @@ export function AnnotatableMarkdownDocument({
       window.removeEventListener('resize', scheduleCoordsRecompute)
       root.removeEventListener('scroll', scheduleCoordsRecompute, { capture: true } as EventListenerOptions)
     }
-  }, [renderedAnnotations, annotations, content])
+  }, [renderedAnnotations, annotations, content, geometryKey])
 
   React.useEffect(() => {
     if (!canAnnotate) {
@@ -349,6 +379,7 @@ export function AnnotatableMarkdownDocument({
     if (!root || !canAnnotate) return
 
     requestAnimationFrame(() => {
+      if (!root.isConnected || !interactionEnabledRef.current) return
       const selection = window.getSelection()
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
         closeSelectionMenu()
@@ -446,6 +477,7 @@ export function AnnotatableMarkdownDocument({
         selectedText,
         prefix,
         suffix,
+        mermaid: captureMermaidSelection(range),
         anchorX,
         anchorY,
       })
@@ -455,6 +487,7 @@ export function AnnotatableMarkdownDocument({
   }, [annotations, canAnnotate, closeSelectionMenu, triggerSelectionMenuEntryReplay])
 
   const handleSelectionPointerDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!interactionEnabledRef.current || !contentLayerRef.current?.contains(event.target as Node)) return
     selectionStartedInContentRef.current = true
     const snapshot: PointerSnapshot = {
       x: event.clientX,
@@ -466,7 +499,7 @@ export function AnnotatableMarkdownDocument({
   }, [])
 
   const handleTextSelection = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!canAnnotate) return
+    if (!canAnnotate || !selectionStartedInContentRef.current || !contentLayerRef.current?.contains(event.target as Node)) return
 
     if (shouldIgnoreSelectionMouseUpTarget(event.target)) {
       selectionStartedInContentRef.current = false
@@ -628,7 +661,10 @@ export function AnnotatableMarkdownDocument({
       draft={followUpDraft}
       onDraftChange={setFollowUpDraft}
       onOpenFollowUp={handleOpenFollowUpView}
-      onCancel={handleCancelFollowUp}
+      onCancel={() => {
+        if (selectionMenuView === 'compact') { clearDomSelection(); closeSelectionMenu() }
+        else handleCancelFollowUp()
+      }}
       onRequestBack={handleSelectionMenuRequestBack}
       onRequestEdit={handleRequestFollowUpEdit}
       onSubmit={handleSubmitFollowUp}
@@ -643,16 +679,22 @@ export function AnnotatableMarkdownDocument({
 
   return (
     <>
+      <MermaidAnnotationContext.Provider value={diagramHost}>
       <div
         ref={contentLayerRef}
+        data-ca-annotation-root="true"
         className="relative"
+        style={children ? { width: '100%', height: '100%' } : undefined}
         onMouseDown={handleSelectionPointerDown}
         onMouseUp={handleTextSelection}
       >
-        <Markdown mode="minimal" onUrlClick={onOpenUrl} onFileClick={onOpenFile} hideFirstMermaidExpand={false}>
+        {children ?? <Markdown mode="minimal" onUrlClick={onOpenUrl} onFileClick={onOpenFile} hideFirstMermaidExpand={false}>
           {content}
-        </Markdown>
+        </Markdown>}
 
+        {unresolvedCount > 0 && <div data-ca-canonical-ignore="true" role="status" className="text-xs text-muted-foreground p-2">
+          {t('chat.unlocatedAnnotations', { count: unresolvedCount, defaultValue: '{{count}} annotations could not be located.' })}
+        </div>}
         <AnnotationOverlayLayer
           rects={annotationOverlay.rects}
           chips={annotationOverlay.chips}
@@ -663,7 +705,8 @@ export function AnnotatableMarkdownDocument({
           }}
         />
       </div>
-      {selectionMenu}
+      {!childOverlayOpen && selectionMenu}
+      </MermaidAnnotationContext.Provider>
     </>
   )
 }

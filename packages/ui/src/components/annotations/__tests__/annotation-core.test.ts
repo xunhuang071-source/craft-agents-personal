@@ -60,3 +60,11 @@ describe('annotation core helpers', () => {
     expect(String(sent.style.backgroundColor)).toContain('14%')
   })
 })
+
+
+it('preserves a block-local diagram anchor in preview and saved annotations', () => {
+  const mermaid = { version: 1 as const, blockId: 'b', blockPath: 'line:1-4', sourceHash: 'hash', start: 0, end: 2, exact: '开始', prefix: '', suffix: '', labelIndex: 1 }
+  const selection = { start: 10, end: 12, selectedText: '开始', prefix: '', suffix: '', mermaid }
+  expect(createSelectionPreviewAnnotation('m', selection).meta?.mermaid).toEqual(mermaid)
+  expect(createTextSelectionAnnotation('m', selection, '批注').meta?.mermaid).toEqual(mermaid)
+})

@@ -41,3 +41,9 @@ describe('tiptap mermaid input helpers', () => {
     expect(source).toBeNull()
   })
 })
+
+
+it('recognizes additional Pele types when pasting raw Mermaid', () => {
+  expect(extractMermaidSource('gitGraph\n  commit')).toBe('gitGraph\n  commit')
+  expect(extractMermaidSource('kanban\n  todo[待办]')).toBe('kanban\n  todo[待办]')
+})

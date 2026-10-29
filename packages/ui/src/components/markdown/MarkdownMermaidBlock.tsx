@@ -1,17 +1,18 @@
 import * as React from 'react'
-import { renderMermaidSVG } from 'beautiful-mermaid'
+import { renderMermaidDiagram } from './mermaid-renderer'
+import { MermaidAnnotationContext } from '../annotations/MermaidAnnotationContext'
+import { clearDomSelection } from '../annotations/selection-restore'
 import { Maximize2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { CodeBlock } from './CodeBlock'
 import { MermaidPreviewOverlay } from '../overlay/MermaidPreviewOverlay'
-import { normalizeMermaidSource } from './mermaid-source'
 import { useScrollFade } from './useScrollFade'
 import { useTranslation } from 'react-i18next'
 
 // ============================================================================
 // MarkdownMermaidBlock — renders mermaid code fences as SVG diagrams.
 //
-// Uses beautiful-mermaid to parse flowchart text and produce an SVG string.
+// Uses Pele to parse Mermaid text and produce a themeable SVG string.
 // Falls back to a plain code block if rendering fails (invalid syntax, etc).
 //
 // Theming: Colors are passed as CSS variable references (var(--background),
@@ -60,31 +61,39 @@ interface MarkdownMermaidBlockProps {
 
 export function MarkdownMermaidBlock({ code, className, showExpandButton = true, tapToOpen = true, minHeight }: MarkdownMermaidBlockProps) {
   const { t } = useTranslation()
-  // Render synchronously — no flash between CodeBlock and SVG.
-  // Colors are CSS variable references so the SVG inherits from the app's theme
-  // via CSS cascade. Theme switches apply automatically without re-rendering.
-  const { svg, error } = React.useMemo(() => {
-    try {
-      return {
-        svg: renderMermaidSVG(normalizeMermaidSource(code), {
-          bg: 'var(--background)',
-          fg: 'var(--foreground)',
-          accent: 'var(--accent)',
-          line: 'var(--foreground-30)',
-          muted: 'var(--muted-foreground)',
-          surface: 'var(--foreground-3)',
-          border: 'var(--foreground-20)',
-          transparent: true,
-          interactive: true,
-        }),
-        error: null,
-      }
-    } catch (err) {
-      return { svg: null, error: err instanceof Error ? err : new Error(String(err)) }
-    }
+  const diagramId = `diagram-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const annotationHost = React.useContext(MermaidAnnotationContext)
+  const hostRef = React.useRef(annotationHost)
+  hostRef.current = annotationHost
+  const inlineRef = React.useRef<HTMLDivElement>(null)
+  const sourceHash = React.useMemo(() => {
+    let hash = 2166136261
+    for (let i = 0; i < code.length; i++) hash = Math.imul(hash ^ code.charCodeAt(i), 16777619)
+    return (hash >>> 0).toString(36)
   }, [code])
-
+  const { svg, error } = React.useMemo(() => {
+    try { return { svg: renderMermaidDiagram(code, diagramId).svg, error: null } }
+    catch (error) { return { svg: null, error } }
+  }, [code, diagramId])
   const [isFullscreen, setIsFullscreen] = React.useState(false)
+  const openFullscreen = (explicit = false) => {
+    const selection = window.getSelection()
+    // A drag to select text must never be interpreted as a click-to-expand.
+    if (!explicit && selection && !selection.isCollapsed && inlineRef.current?.contains(selection.anchorNode)) return
+    clearDomSelection()
+    hostRef.current?.onDiagramOpenChange(true)
+    setIsFullscreen(true)
+  }
+  const closeFullscreen = () => {
+    clearDomSelection()
+    hostRef.current?.onDiagramOpenChange(false)
+    setIsFullscreen(false)
+  }
+  React.useEffect(() => {
+    if (!isFullscreen) return
+    const host = hostRef.current
+    return () => { host?.onDiagramOpenChange(false) }
+  }, [isFullscreen])
   const { scrollRef, maskImage } = useScrollFade(FADE_SIZE)
 
   // Stable container width — measured via useLayoutEffect (before browser paint)
@@ -184,13 +193,13 @@ export function MarkdownMermaidBlock({ code, className, showExpandButton = true,
   return (
     <>
       {/* Wrapper with group class so the expand button shows on hover */}
-      <div className={cn('relative group', className)} style={minHeightStyle}>
+      <div ref={inlineRef} data-ca-mermaid-source={sourceHash} data-ca-mermaid-svg="true" className={cn('relative group [&_text]:select-text [&_tspan]:select-text [&_text]:cursor-text', className)} style={minHeightStyle}>
         {/* Expand button — matches code block expand button style (TurnCard pattern).
             Hidden when showExpandButton is false (first block in message, where
             TurnCard's own fullscreen button occupies the same top-right position). */}
         {showExpandButton && (
           <button
-            onClick={() => setIsFullscreen(true)}
+            onClick={() => openFullscreen(true)}
             className={cn(
               "absolute top-2 right-2 p-1 rounded-[6px] transition-all z-10 select-none",
               "opacity-0 group-hover:opacity-100",
@@ -227,14 +236,14 @@ export function MarkdownMermaidBlock({ code, className, showExpandButton = true,
               margin: needsScaling && !scaledDims?.needsScroll ? '0 auto' : undefined,
               cursor: tapToOpen ? 'pointer' : undefined,
             }}
-            onClick={tapToOpen ? () => setIsFullscreen(true) : undefined}
+            onClick={tapToOpen ? () => openFullscreen() : undefined}
             role={tapToOpen ? 'button' : undefined}
             aria-label={tapToOpen ? 'Open Mermaid diagram fullscreen' : undefined}
             tabIndex={tapToOpen ? 0 : undefined}
             onKeyDown={tapToOpen ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                setIsFullscreen(true)
+                openFullscreen(true)
               }
             } : undefined}
           >
@@ -254,9 +263,10 @@ export function MarkdownMermaidBlock({ code, className, showExpandButton = true,
       {/* Fullscreen overlay with zoom/pan */}
       <MermaidPreviewOverlay
         isOpen={isFullscreen}
-        onClose={() => setIsFullscreen(false)}
-        svg={svg}
+        onClose={closeFullscreen}
         code={code}
+        annotationHost={annotationHost}
+        diagramElement={inlineRef.current}
       />
     </>
   )

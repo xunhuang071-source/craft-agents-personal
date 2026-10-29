@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { OverlayPortalContext } from '../../lib/overlay-portal-context'
 import * as ReactDOM from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { cn } from '../../lib/utils'
@@ -286,6 +287,7 @@ export function Island({
   replayOnVisible = 'auto',
   overlayZIndex,
 }: IslandProps) {
+  const overlayPortal = React.useContext(OverlayPortalContext)
   const shellRef = React.useRef<HTMLDivElement | null>(null)
   const activeViewRef = React.useRef<HTMLDivElement | null>(null)
   const layerIdRef = React.useRef(`island-${Math.random().toString(36).slice(2)}`)
@@ -548,7 +550,7 @@ export function Island({
     if (bridge) return
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
 
       const handled = handleIslandEscape({
         dialogBehavior,
@@ -769,11 +771,17 @@ export function Island({
             handleIslandEscape({ dialogBehavior, onRequestBack, onRequestClose })
           }}
         />,
-        document.body
+        overlayPortal ?? document.body
       )}
       <motion.div
         key={replayEntryKey != null ? `replay:${String(replayEntryKey)}` : 'replay:default'}
         ref={shellRef}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape' || event.defaultPrevented || !isVisible) return
+          if (!handleIslandEscape({ dialogBehavior, onRequestBack, onRequestClose })) return
+          event.preventDefault()
+          event.stopPropagation()
+        }}
         layout
         initial={shouldAnimateFromHiddenOnMount ? hiddenPose : false}
         animate={effectiveVisible ? visiblePose : exitHiddenPose}

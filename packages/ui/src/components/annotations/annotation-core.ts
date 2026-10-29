@@ -3,12 +3,26 @@ import type { AnnotationV1 } from '@craft-agent/core'
 export const ANNOTATION_PREFIX_SUFFIX_WINDOW = 24
 export const SELECTION_POINTER_MAX_AGE_MS = 1500
 
+export interface MermaidSelectionAnchor {
+  version: 1
+  blockId: string
+  blockPath: string
+  sourceHash: string
+  start: number
+  end: number
+  exact: string
+  prefix: string
+  suffix: string
+  labelIndex?: number
+}
+
 export type TextAnnotationSelection = {
   start: number
   end: number
   selectedText: string
   prefix: string
   suffix: string
+  mermaid?: MermaidSelectionAnchor
 }
 
 export function clamp(value: number, min: number, max: number): number {
@@ -59,6 +73,7 @@ export function createSelectionPreviewAnnotation(
     meta: {
       ephemeral: true,
       source: 'follow-up-selection-preview',
+      ...(selection.mermaid ? { mermaid: selection.mermaid } : {}),
     },
   }
 }
@@ -97,16 +112,12 @@ export function createTextSelectionAnnotation(
       ],
     },
     style: { color: 'yellow' },
-    ...(hasNote
-      ? {
-          meta: {
-            followUp: {
-              text: note,
-              createdAt: now,
-            },
-          },
-        }
-      : {}),
+    ...((hasNote || selection.mermaid) ? {
+      meta: {
+        ...(selection.mermaid ? { mermaid: selection.mermaid } : {}),
+        ...(hasNote ? { followUp: { text: note, createdAt: now } } : {}),
+      },
+    } : {}),
   }
 }
 
@@ -121,7 +132,7 @@ export function collectTextSegments(root: HTMLElement): Array<{ node: Text; star
     const parent = node.parentElement
 
     // Ignore synthetic annotation overlay/index content in text/offset math.
-    if (parent?.closest('[data-ca-annotation-overlay]') || parent?.closest('[data-ca-annotation-index]')) {
+    if (parent?.closest('[data-ca-annotation-overlay], [data-ca-annotation-index], [data-ca-annotation-island], [data-ca-canonical-ignore], svg style, svg defs, svg title, svg desc, svg metadata')) {
       current = walker.nextNode()
       continue
     }
@@ -158,7 +169,7 @@ export function resolveNodeOffset(root: HTMLElement, targetNode: Node, nodeOffse
     probe.setEnd(targetNode, nodeOffset)
 
     const fragment = probe.cloneContents()
-    fragment.querySelectorAll('[data-ca-annotation-index]').forEach(node => node.remove())
+    fragment.querySelectorAll('[data-ca-annotation-overlay], [data-ca-annotation-index], [data-ca-annotation-island], [data-ca-canonical-ignore], style, defs, title, desc, metadata').forEach(node => node.remove())
     return (fragment.textContent || '').length
   } catch {
     return null

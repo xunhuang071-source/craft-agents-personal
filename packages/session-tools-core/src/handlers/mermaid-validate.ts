@@ -1,14 +1,20 @@
 /**
  * Mermaid Validate Handler
  *
- * Validates Mermaid diagram syntax using beautiful-mermaid renderer.
+ * Validates Mermaid diagram syntax and layout using Pele's render path.
  * No DOM required - works identically in Claude and Codex.
  */
 
 import type { SessionToolContext } from '../context.ts';
 import type { ToolResult } from '../types.ts';
-import { renderMermaidSVG } from 'beautiful-mermaid';
-import { normalizeMermaidSource } from '../validation.ts';
+import { PeleError, render } from 'pele';
+
+// Keep this policy in sync with ui/components/markdown/mermaid-renderer.ts.
+const SOURCE_LIMIT = 50_000;
+const OUTPUT_LIMIT = 4_000_000;
+const MAX_EDGES = 5_000;
+const FONT_FAMILY = 'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
+const FONT_FAMILY_MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", monospace';
 
 export interface MermaidValidateArgs {
   code: string;
@@ -18,11 +24,10 @@ export interface MermaidValidateArgs {
 /**
  * Handle the mermaid_validate tool call.
  *
- * Uses renderMermaidSVG from beautiful-mermaid to validate the same diagram
- * families the renderer accepts, including xychart-beta. YAML frontmatter is
- * stripped before validation because it is metadata rather than diagram syntax.
- * If rendering succeeds, the diagram is valid. If rendering throws, returns the
- * error message.
+ * Always render, including when render=false: parsing alone misses invalid
+ * layouts. Keep legitimate frontmatter and init directives, exactly as the UI
+ * does. Only leading whitespace/BOM is removed for Pele's type detection.
+ * Return the existing valid/message or valid/error/suggestion response shape.
  */
 export async function handleMermaidValidate(
   _ctx: SessionToolContext,
@@ -31,9 +36,22 @@ export async function handleMermaidValidate(
   const { code } = args;
 
   try {
-    // renderMermaidSVG throws if syntax/layout is invalid. Use the renderer path
-    // rather than parseMermaid(), which only understands flowchart/state syntax.
-    renderMermaidSVG(normalizeMermaidSource(code));
+    // Check before trimming so leading whitespace cannot bypass the limit.
+    if (code.length > SOURCE_LIMIT) {
+      throw new PeleError(`Diagram source is longer than the limit of ${SOURCE_LIMIT} characters.`, 'limit');
+    }
+    render(code.trimStart(), {
+      idPrefix: 'mermaid-validation',
+      responsive: false,
+      autoDirection: false,
+      fontFamily: FONT_FAMILY,
+      fontFamilyMono: FONT_FAMILY_MONO,
+      links: false,
+      images: false,
+      limit: SOURCE_LIMIT,
+      outputLimit: OUTPUT_LIMIT,
+      maxEdges: MAX_EDGES,
+    });
 
     return {
       content: [{

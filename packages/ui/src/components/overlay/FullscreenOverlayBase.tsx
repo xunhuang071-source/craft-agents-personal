@@ -30,7 +30,8 @@
  * Used by: PreviewOverlay, DocumentFormattedMarkdownOverlay, WorkspaceCreationScreen
  */
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { OverlayPortalContext, dispatchOverlayAnnotationEscape } from '../../lib/overlay-portal-context'
 import * as Dialog from '@radix-ui/react-dialog'
 import { usePlatform } from '../../context/PlatformContext'
 import { cn } from '../../lib/utils'
@@ -107,6 +108,9 @@ export function FullscreenOverlayBase({
   error,
 }: FullscreenOverlayBaseProps) {
   const { onSetTrafficLightsVisible } = usePlatform()
+  const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   // Determine if we should render the structured header.
   // Any header-related prop triggers header rendering.
@@ -123,9 +127,9 @@ export function FullscreenOverlayBase({
       id: overlayIdRef.current,
       type: 'radix-dialog',
       priority: 100,
-      close: onClose,
+      close: () => onCloseRef.current(),
     })
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   // Hide macOS traffic lights when overlay opens, restore when it closes
   // This prevents accidental clicks on window controls behind the fullscreen overlay
@@ -149,16 +153,23 @@ export function FullscreenOverlayBase({
             'bg-foreground-3 fullscreen-overlay-background',
             className
           )}
+          data-ca-overlay-surface="true"
           style={{ zIndex: Z_FULLSCREEN }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(event) => {
-            const handled = handleFullscreenEscapeWithStack()
-            if (!handled) return
+            if (event.defaultPrevented) return
+            const handled = handleFullscreenEscapeWithStack() || dispatchOverlayAnnotationEscape(portalHost)
+            if (handled) {
+              event.preventDefault()
+              event.stopPropagation()
 
-            event.preventDefault()
-            event.stopPropagation()
+            }
           }}
         >
+          <OverlayPortalContext.Provider value={portalHost}>
           {/* Visually hidden title for accessibility - required by Radix Dialog */}
           <Dialog.Title className="sr-only">{accessibleTitle}</Dialog.Title>
 
@@ -203,6 +214,8 @@ export function FullscreenOverlayBase({
               />
             </div>
           )}
+          <div ref={setPortalHost} data-ca-overlay-portals="true" />
+          </OverlayPortalContext.Provider>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

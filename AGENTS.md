@@ -7,7 +7,8 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 ## Product policy
 
 - Maintain this personal distribution, not the official upgrade stream. Evaluate upstream only when the user asks. Never merge an upstream version wholesale.
-- Freeze the v0.14.1 renderer, both preloads, original Pi engine and network interceptor unless the user explicitly approves an exception. Preserve Sol 500K, oauthRelay and earlier backend fixes.
+- Freeze the renderer, both preloads, original Pi engine and network interceptor unless the user explicitly approves an exception. Preserve Sol 500K, oauthRelay and earlier backend fixes.
+- Approved 2026-10-29 exception: Pele renderer/editor detection, diagram annotations and host Mermaid validation. Local candidate is wallee-v1.1.0-rc.1; the installed stable app is not replaced. Use scripts/personal-build-diagram-candidate.mjs and docs/personal/PELE-REVIEW.md. Both Pi bundles, preloads and interceptor remain byte-identical; static old validator bytes in Pi are not an active fallback.
 - Keep application identity and the existing user profile path. Do not silently change the default model or import a test profile.
 - Plan first; implement only after explicit user approval. Do not interrupt or replace the running application.
 
