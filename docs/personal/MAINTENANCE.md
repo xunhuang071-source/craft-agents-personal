@@ -92,7 +92,7 @@ node scripts/personal-build-diagram-candidate.mjs --record-lock
 node scripts/personal-build-diagram-candidate.mjs --out "$PWD/native-artifacts/pele-rc1"
 ```
 
-脚本验证原程序、固定工具版本和引擎提交，只构建 main 与 renderer；重新构建的 managed Pi 仅作原哈希核对，不替换冻结代码。新目录排除旧 renderer chunks，再复制新 renderer/main，保留其余基线文件，签名并生成全文件清单和候选清单。不启动、不安装、不读 profile。
+脚本验证原程序、固定工具版本和引擎提交，只构建 main 与 renderer；重新构建的 managed Pi 仅作原哈希核对，不替换冻结代码。构建时明确清空生成目录中的旧 renderer chunks；新候选排除基础包旧 renderer，再复制新 renderer/main，保留其余基线文件，签名并生成全文件清单和候选清单。随后 personal-audit-candidate.py 比对全部文件，确认主可执行文件仅嵌入签名变化，并扫描应用文本资源；误报按文件哈希和匹配值摘要逐项绑定，不豁免整个 bundle 目录。不启动、不安装、不读 profile。
 
 测试服务器只监听本机：
 

@@ -47,10 +47,10 @@ function tree(directory) {
   return hash.digest('hex')
 }
 // Validate the immutable base using its own release lock, never the new renderer hash.
-run('python3', ['scripts/personal-app-inventory.py', '--app', base, '--lock', baselineLock])
+run('python3', ['scripts/personal-app-inventory.py', '--app', base, '--lock', baselineLock, '--output', path.join(build, 'baseline-inventory.json')])
 fs.mkdirSync(build, { recursive: true })
 run('node', ['scripts/personal-build.mjs', '--bun', bun, '--out', code, ...(options.record ? [] : ['--verify-current'])])
-run(bun, ['node_modules/vite/bin/vite.js', 'build', '--config', 'apps/electron/vite.config.ts', '--outDir', renderer])
+run(bun, ['node_modules/vite/bin/vite.js', 'build', '--config', 'apps/electron/vite.config.ts', '--outDir', renderer, '--emptyOutDir'])
 const mainSha256 = sha(path.join(code, 'main.cjs'))
 const managedPiSha256 = sha(path.join(code, 'managed-pi.js'))
 const rendererTreeSha256 = tree(renderer)
@@ -84,6 +84,7 @@ fs.cpSync(renderer, path.join(app, rendererRel), { recursive: true, preserveTime
 fs.copyFileSync(path.join(code, 'main.cjs'), path.join(app, mainRel))
 run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', '--preserve-metadata=entitlements,requirements,flags,runtime', app])
 run('python3', ['scripts/personal-app-inventory.py', '--app', app, '--output', path.join(out, 'application-files.json')])
+run('python3', ['scripts/personal-audit-candidate.py', '--base-app', base, '--app', app, '--baseline-inventory', path.join(build, 'baseline-inventory.json'), '--inventory', path.join(out, 'application-files.json'), '--out', out])
 const sourceCommit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).stdout.trim()
 const manifest = { schemaVersion: 1, version: lock.version, sourceCommit, engineCommit: lock.engineCommit,
   application: 'Craft Agents.app', mainSha256, managedPiSha256, rendererTreeSha256,
