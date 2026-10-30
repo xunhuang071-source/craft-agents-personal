@@ -1,3 +1,5 @@
+import './block-node-network.ts';
+
 /**
  * Preloaded by bundle-smoke.test.ts so the auth-path assertion can never make
  * a real provider request. The fake OAuth token should fail at accountId

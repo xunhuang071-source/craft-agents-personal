@@ -1134,3 +1134,14 @@ export function migrateLlmConnection(legacy: {
     lastUsedAt: legacy.lastUsedAt,
   };
 }
+
+// Pi utility tier used by the existing 1.1 adapter; does not alter saved defaults.
+export const PI_PREFERRED_MINI_MODELS: Record<string, string[]> = {
+  openai: ['gpt-6-luna', 'gpt-5.6-luna', 'gpt-5.4-nano', 'gpt-5.4-mini'],
+  'openai-codex': ['gpt-6-luna', 'gpt-5.6-luna'],
+  anthropic: ['claude-haiku-5-5', 'claude-haiku-4-5'],
+  'amazon-bedrock': ['claude-haiku-5-5', 'claude-haiku-4-5'],
+  moonshotai: ['kimi-k2.6'],
+  'moonshotai-cn': ['kimi-k2.6'],
+  'cloudflare-ai-gateway': ['claude-haiku-4-5', 'gpt-6-luna', 'gpt-5.6-luna'],
+};

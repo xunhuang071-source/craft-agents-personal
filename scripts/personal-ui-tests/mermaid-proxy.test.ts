@@ -4,6 +4,7 @@ import { createInterface } from 'node:readline'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createOfflineEnvironment } from '../../packages/pi-agent-server/src/test-fixtures/offline-environment'
 import { handleMermaidValidate } from '../../packages/session-tools-core/src/handlers/mermaid-validate'
 import type { SessionToolContext } from '../../packages/session-tools-core/src/context'
 
@@ -27,7 +28,7 @@ function stream(tool?: string) {
   ]
   return new Response(events.map(e => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
 }
-integration('frozen Pi delegates Mermaid validation to the host Pele handler', async () => {
+integration('Pi bundle delegates Mermaid validation to the host Pele handler', async () => {
   const root = await mkdtemp(join(tmpdir(), 'craft-pele-proxy-'))
   const session = join(root, 'workspace/sessions/fixture')
   await mkdir(session, { recursive: true })
@@ -39,8 +40,8 @@ integration('frozen Pi delegates Mermaid validation to the host Pele handler', a
     expect(body.tools.some((t: any) => t.name === tool)).toBe(true)
     return stream(calls++ === 0 ? tool : undefined)
   } })
-  const child = spawn(process.execPath, [bundle!], { cwd: root, stdio: 'pipe', env: {
-    PATH: process.env.PATH, HOME: root, CRAFT_CONFIG_DIR: join(root, 'config'), CRAFT_DEBUG: '0',
+  const child = spawn(process.execPath, ['--preload', join(import.meta.dir, '../../packages/pi-agent-server/src/test-fixtures/loopback-network.ts'), bundle!], { cwd: root, stdio: 'pipe', env: {
+    ...createOfflineEnvironment(root), CRAFT_PI_TEST_ORIGIN: `http://127.0.0.1:${server.port}`,
   } })
   const send = (message: unknown) => child.stdin!.write(JSON.stringify(message) + '\n')
   child.once('exit', () => { exited = true })
@@ -63,7 +64,7 @@ integration('frozen Pi delegates Mermaid validation to the host Pele handler', a
     if (m.type === 'event' && m.event?.type === 'agent_end') done = true
   })
   try {
-    send({ type: 'init', managedProvider: 'antigravity', apiKey: 'local-fixture-key', model: 'fixture', cwd: root, workingDirectory: root,
+    send({ type: 'init', ...(process.env.CRAFT_PI_TEST_MANAGED === '0' ? {} : { managedProvider: 'antigravity' }), apiKey: 'local-fixture-key', model: 'fixture', cwd: root, workingDirectory: root,
       thinkingLevel: 'off', workspaceRootPath: join(root, 'workspace'), workspaceId: 'fixture', sessionId: 'fixture', sessionPath: session,
       plansFolderPath: join(session, 'plans'), agentDir: join(root, 'agent'), providerType: 'pi_compat', authType: 'api_key_with_endpoint',
       baseUrl: `http://127.0.0.1:${server.port}`, customEndpoint: { api: 'anthropic-messages' },

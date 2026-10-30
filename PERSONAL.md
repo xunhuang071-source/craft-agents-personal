@@ -2,6 +2,8 @@
 
 **当前正式版：wallee-v1.1.0（2026-10-29）**
 
+**本地待验收候选：wallee-v1.2.0-rc.1（2026-10-30）**，常规 Pi 与 Antigravity Pi SDK 均为 1.4.0。界面、Pele、preload、拦截器和用户数据不变；未自动安装或发布。见 [升级验证记录](docs/personal/PI-SDK-1.4-REVIEW.md)。当前主树组件锁对应候选，稳定回退锁保存在 docs/personal/baselines/wallee-v1.1.0.json。
+
 Pele 与展开批注已由用户手动安装并验收通过；正式版与验收候选代码哈希一致，无需重复安装。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
 
 - [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.1.0)

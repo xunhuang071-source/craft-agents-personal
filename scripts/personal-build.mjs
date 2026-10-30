@@ -31,6 +31,7 @@ if (run('git', ['status', '--porcelain', '--untracked-files=no'], engine)) throw
 fs.mkdirSync(out, { recursive: true });
 const main = path.join(out, 'main.cjs');
 const managed = path.join(out, 'managed-pi.js');
+const standard = lock.expectedBuild.standardPiSha256 ? path.join(out, 'standard-pi.js') : undefined;
 // This release intentionally has empty build-time OAuth defines. Runtime account credentials are never read.
 const defines = ['SLACK_OAUTH_CLIENT_ID', 'SLACK_OAUTH_CLIENT_SECRET', 'MICROSOFT_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_SECRET', 'SENTRY_ELECTRON_INGEST_URL', 'CRAFT_DEV_RUNTIME'].map(k => `--define:process.env.${k}=""`);
 run(esbuild, [
@@ -40,7 +41,8 @@ run(esbuild, [
   '--alias:abort-controller=./apps/electron/src/main/shims/abort-controller.cjs', ...defines,
 ]);
 run(bun, ['build', 'packages/pi-agent-server/src/index.ts', '--outfile', managed, '--target', 'bun', '--format', 'esm', '--external', 'koffi'], engine);
+if (standard) run(bun, ['build', 'packages/pi-agent-server/src/index.ts', '--outfile', standard, '--target', 'bun', '--format', 'esm', '--external', 'koffi']);
 const sha = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-const result = { version: lock.version, engineCommit: lock.engineCommit, main, managed, mainSha256: sha(main), managedPiSha256: sha(managed) };
-if (options.verify && (result.mainSha256 !== lock.expectedBuild.mainSha256 || result.managedPiSha256 !== lock.expectedBuild.managedPiSha256)) throw Error('Rebuilt code differs from the recorded release; do not publish as that version');
+const result = { version: lock.version, engineCommit: lock.engineCommit, main, managed, ...(standard ? { standard } : {}), mainSha256: sha(main), managedPiSha256: sha(managed), ...(standard ? { standardPiSha256: sha(standard) } : {}) };
+if (options.verify && Object.entries(lock.expectedBuild).some(([key, value]) => result[key] !== value)) throw Error('Rebuilt code differs from the recorded release; do not publish as that version');
 console.log(JSON.stringify(result, null, 2));

@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   DefaultResourceLoader,
   type ExtensionAPI,
@@ -32,7 +34,16 @@ export const CRAFT_SYSTEM_PROMPT_EXTENSION_NAME = 'craft-system-prompt';
 export function createSystemPromptOverride(): SystemPromptOverride {
   let current: string | undefined;
   const factory = (pi: ExtensionAPI): void => {
-    pi.on('before_agent_start', () => (current === undefined ? undefined : { systemPrompt: current }));
+    pi.on('before_agent_start', (event) => {
+      if (current === undefined) return undefined;
+      const files = event.systemPromptOptions.contextFiles;
+      if (!files.length) return { systemPrompt: current };
+      const context = [
+        'Project-specific instructions and guidelines:',
+        ...files.map(({ path, content }) => `<project_instructions path="${path}">\n${content}\n</project_instructions>`),
+      ].join('\n\n');
+      return { systemPrompt: `${current}\n\n<project_context>\n${context}\n</project_context>` };
+    });
   };
   return {
     extension: { name: CRAFT_SYSTEM_PROMPT_EXTENSION_NAME, factory, hidden: true },
@@ -45,12 +56,30 @@ export function createSystemPromptOverride(): SystemPromptOverride {
 
 /**
  * The resource loader `createAgentSession` would build on its own (same cwd,
- * agentDir and settings), plus the system-prompt override extension. Discovery of
- * skills, context files and on-disk extensions is unchanged.
+ * agentDir and settings), plus the system-prompt override extension. Discovery
+ * follows the SDK rules for what it is given: Craft passes an empty agentDir
+ * (`agent-dir.ts`) and settings that never trust the working directory
+ * (`session-settings.ts`), so no on-disk extension, skill or prompt loads.
  */
+export function loadCraftWorkspaceInstructions(workspaceRootPath?: string): {
+  agentsFiles: Array<{ path: string; content: string }>;
+} {
+  if (!workspaceRootPath) return { agentsFiles: [] };
+  const path = join(workspaceRootPath, 'AGENTS.md');
+  try {
+    if (!statSync(path).isFile()) return { agentsFiles: [] };
+    return { agentsFiles: [{ path, content: readFileSync(path, 'utf8') }] };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return { agentsFiles: [] };
+    throw error;
+  }
+}
+
 export async function createCraftResourceLoader(options: {
   cwd: string;
   agentDir: string;
+  workspaceRootPath?: string;
   settingsManager: SettingsManager;
   systemPromptOverride: SystemPromptOverride;
 }): Promise<DefaultResourceLoader> {
@@ -58,6 +87,8 @@ export async function createCraftResourceLoader(options: {
     cwd: options.cwd,
     agentDir: options.agentDir,
     settingsManager: options.settingsManager,
+    noContextFiles: true,
+    agentsFilesOverride: () => loadCraftWorkspaceInstructions(options.workspaceRootPath),
     extensionFactories: [options.systemPromptOverride.extension],
   });
   await loader.reload();

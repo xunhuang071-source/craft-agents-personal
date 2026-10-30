@@ -30,10 +30,14 @@ assert json.loads((base / 'package.json').read_text())['main'] == 'dist/main.cjs
 assert not (app / 'Contents/Resources/app-update.yml').exists(), 'Official automatic updates enabled'
 assert not (base / 'preview-bootstrap.cjs').exists(), 'Preview bootstrap present'
 assert not (base / 'native-validation-bootstrap.cjs').exists(), 'Validation bootstrap present'
-assert sha(base / 'resources/pi-agent-server/index.js') == lock['frozen']['retainedPiSha256'], 'Original Pi changed'
+if 'retainedPiSha256' in lock['frozen']:
+    assert sha(base / 'resources/pi-agent-server/index.js') == lock['frozen']['retainedPiSha256'], 'Original Pi changed'
 assert tree(base / 'dist/renderer') == lock['frozen']['rendererTreeSha256'], 'Frozen renderer changed'
 for rel, value in lock['frozen']['files'].items(): assert sha(app / rel) == value, 'Frozen resource changed: ' + rel
 components = {'mainSha256': sha(base / 'dist/main.cjs'), 'managedPiSha256': sha(base / 'resources/antigravity-pi-agent-server/index.js')}
+if 'standardPiSha256' in lock['expectedBuild']:
+    assert 'retainedPiSha256' not in lock['frozen'], 'Pi cannot be both frozen and rebuilt'
+    components['standardPiSha256'] = sha(base / 'resources/pi-agent-server/index.js')
 if not a.frozen_only: assert components == lock['expectedBuild'], 'Compiled code does not match source release lock'
 subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(app)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 entries = []

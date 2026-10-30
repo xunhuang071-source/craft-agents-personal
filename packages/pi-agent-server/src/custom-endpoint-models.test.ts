@@ -83,3 +83,24 @@ describe('buildCustomEndpointModelDef', () => {
     expect((model as { compat?: unknown }).compat).toBeUndefined()
   })
 })
+
+describe('explicit managed-provider capabilities', () => {
+  it('preserves reasoning and output metadata through normalization', () => {
+    expect(normalizeCustomEndpointModelEntry({
+      id: 'pi/gemini-example', contextWindow: 1_048_576,
+      supportsThinking: true, maxTokens: 65_536,
+    })).toEqual({ id: 'gemini-example', contextWindow: 1_048_576, supportsThinking: true, maxTokens: 65_536 })
+  })
+  it('only enables reasoning when explicitly declared', () => {
+    expect(buildCustomEndpointModelDef('old-endpoint').reasoning).toBe(false)
+    expect(buildCustomEndpointModelDef('new-endpoint', undefined, { supportsThinking: true }).reasoning).toBe(true)
+    expect(buildCustomEndpointModelDef('text-model', undefined, { supportsThinking: false }).reasoning).toBe(false)
+  })
+  it('retains the legacy output limit unless a valid explicit limit is supplied', () => {
+    expect(buildCustomEndpointModelDef('old-endpoint').maxTokens).toBe(8192)
+    expect(buildCustomEndpointModelDef('new-endpoint', undefined, { maxTokens: 65536 }).maxTokens).toBe(65536)
+    for (const maxTokens of [0, -1, Infinity, NaN]) {
+      expect(buildCustomEndpointModelDef('invalid', undefined, { maxTokens }).maxTokens).toBe(8192)
+    }
+  })
+})

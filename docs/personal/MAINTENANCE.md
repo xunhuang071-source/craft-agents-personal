@@ -28,7 +28,7 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 ## 最小构建
 
-以下脚本只编译主进程和新适配器，不编译 renderer、preload 或原 Pi。命令从 main 树根目录执行：
+以下脚本按组件锁定向编译，不编译 renderer、preload 或 interceptor。旧稳定版只重建主进程和独立适配器；2026-10-30 获批的 Pi SDK 1.4 候选额外从主树构建常规 Pi。两份 Pi 分别记录期望哈希；不得用冻结 bundle 替代新版本源码。命令从 main 树根目录执行：
 
 ```sh
 node scripts/personal-build.mjs \
@@ -48,7 +48,7 @@ CRAFT_RELEASE_OUT="$PWD/native-artifacts/candidate" \
 bash scripts/build-native-antigravity-release.sh
 ```
 
-脚本仅组装并 ad-hoc 签名候选，不安装、不启动、不读账户，不允许覆盖现存候选。冻结资源核对失败必须停止。首次基础包无需从源码重造官方 UI/SDK。
+脚本仅组装并 ad-hoc 签名候选，不安装、不启动、不读账户，不允许覆盖现存候选。冻结资源核对失败必须停止。首次基础包无需从源码重造官方 UI/SDK。Pi SDK 升级时通过 piSdkUpgrade.baselineLock 指定不可变输入锁，输入应用完整校验后再用当前锁校验输出；--scope pi-sdk 审计只放行 main、两份 Pi 和签名，不放行 renderer。详见 [Pi 1.4 验证记录](PI-SDK-1.4-REVIEW.md)。
 
 禁止使用通用 `electron:build` / `electron:dist`，它们会重建冻结组件。旧 `.env` 或用户 token 不是当前个人版的构建输入；已验证构建期 OAuth defines 为空。用户授权仅在运行时本机保存。
 

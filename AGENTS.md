@@ -8,6 +8,7 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 
 - Maintain this personal distribution, not the official upgrade stream. Evaluate upstream only when the user asks. Never merge an upstream version wholesale.
 - Freeze the renderer, both preloads, original Pi engine and network interceptor unless the user explicitly approves an exception. Preserve Sol 500K, oauthRelay and earlier backend fixes.
+- Approved 2026-10-30 exception: Pi SDK 1.4.0 candidate. Rebuild both Pi bundles and required host SDK bridges, with source and locks aligned. Renderer, preloads, interceptor, Electron and CLIProxy remain frozen. Local candidate only; installation, real-account tests and publication need separate approval. See docs/personal/PI-SDK-1.4-REVIEW.md.
 - Approved 2026-10-29 exception: Pele renderer/editor detection, diagram annotations and host Mermaid validation. The candidate was manually installed and accepted on 2026-10-29; stable release is wallee-v1.1.0. Do not reinstall the accepted code as part of metadata-only promotion. Use scripts/personal-build-diagram-candidate.mjs and docs/personal/PELE-REVIEW.md. Both Pi bundles, preloads and interceptor remain byte-identical; static old validator bytes in Pi are not an active fallback.
 - Keep application identity and the existing user profile path. Do not silently change the default model or import a test profile.
 - Plan first; implement only after explicit user approval. Do not interrupt or replace the running application.
