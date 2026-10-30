@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { createOfflineEnvironment } from './test-fixtures/offline-environment.ts';
 
 /**
  * Smoke test against the BUILT single-file bundle, not the source tree.
@@ -30,11 +31,14 @@ const RUN_TIMEOUT_MS = 30_000;
 let scratchDir: string;
 
 beforeAll(() => {
-  const build = spawnSync('bun', ['run', 'build'], { cwd: packageDir, stdio: 'pipe', timeout: 120_000 });
+  scratchDir = mkdtempSync(join(tmpdir(), 'pi-bundle-smoke-'));
+  const build = spawnSync(process.execPath, [
+    'build', 'packages/pi-agent-server/src/index.ts',
+    '--outfile=packages/pi-agent-server/dist/index.js', '--target=bun', '--format=esm', '--external', 'koffi',
+  ], { cwd: join(packageDir, '../..'), env: createOfflineEnvironment(scratchDir), stdio: 'pipe', timeout: 120_000 });
   if (build.status !== 0) {
     throw new Error(`bundle build failed: ${build.stderr?.toString() ?? build.stdout?.toString()}`);
   }
-  scratchDir = mkdtempSync(join(tmpdir(), 'pi-bundle-smoke-'));
   mkdirSync(join(scratchDir, 'plans'), { recursive: true });
 });
 
@@ -42,35 +46,12 @@ afterAll(() => {
   if (scratchDir) rmSync(scratchDir, { recursive: true, force: true });
 });
 
-/**
- * Build an allowlisted subprocess environment. Besides keeping the smoke test
- * independent of the developer machine, this prevents ambient provider keys,
- * auth files, custom base URLs, and proxy/routing variables from bypassing the
- * fake credential or escaping the explicit network guard.
- */
-function createOfflineEnvironment(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    HOME: scratchDir,
-    USERPROFILE: scratchDir,
-    XDG_CONFIG_HOME: scratchDir,
-    TMPDIR: scratchDir,
-    TEMP: scratchDir,
-    TMP: scratchDir,
-  };
-
-  // Keep only variables required to launch Bun on each supported platform.
-  for (const key of ['PATH', 'SystemRoot', 'WINDIR', 'COMSPEC', 'PATHEXT'] as const) {
-    if (process.env[key]) env[key] = process.env[key];
-  }
-  return env;
-}
-
 /** Spawn the bundle, send JSONL messages, and collect output until `done` matches or timeout. */
 function driveBundle(messages: object[], done: (output: string) => boolean): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['--preload', blockNetworkPreloadPath, bundlePath], {
       cwd: scratchDir,
-      env: createOfflineEnvironment(),
+      env: createOfflineEnvironment(scratchDir),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let output = '';
@@ -101,6 +82,24 @@ function driveBundle(messages: object[], done: (output: string) => boolean): Pro
 }
 
 describe('pi-agent-server bundle', () => {
+  it('statically loads Bedrock to its blocked Node transport without dynamic module resolution', async () => {
+    const output = await driveBundle([
+      {
+        type: 'init', managedProvider: 'antigravity', apiKey: '',
+        model: 'amazon.nova-2-lite-v1:0', cwd: scratchDir, workingDirectory: scratchDir,
+        thinkingLevel: 'off', workspaceRootPath: scratchDir, sessionId: 'bedrock-smoke',
+        sessionPath: join(scratchDir, 'bedrock-session'), plansFolderPath: join(scratchDir, 'plans'),
+        providerType: 'pi', authType: 'api_key',
+        piAuth: { provider: 'amazon-bedrock', credential: { type: 'api_key', key: 'fixture-bedrock-bearer' } },
+      },
+      { type: 'prompt', id: 'bedrock', message: 'offline fixture', systemPrompt: 'Offline smoke.' },
+    ], out => out.includes('OFFLINE_NODE_NETWORK_BLOCKED') || out.includes('Cannot find module') || out.includes('No API key found'));
+    expect(output).not.toContain('Cannot find module');
+    expect(output).not.toContain('No API key found');
+    expect(output).not.toContain('OAuth auth derivation failed');
+    expect(output).toContain('OFFLINE_NODE_NETWORK_BLOCKED');
+  }, RUN_TIMEOUT_MS);
+
   it('resolves a ChatGPT Plus credential for Astra through the bundled auth pipeline offline', async () => {
     const output = await driveBundle(
       [

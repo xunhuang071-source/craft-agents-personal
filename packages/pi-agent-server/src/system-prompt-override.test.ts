@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SettingsManager, type ExtensionAPI, type InlineExtension } from '@earendil-works/pi-coding-agent';
+import { SettingsManager, type BeforeAgentStartEvent, type ExtensionAPI, type InlineExtension } from '@earendil-works/pi-coding-agent';
 import { resolveCraftAgentDir } from './agent-dir.ts';
 import { createCraftSettingsManager } from './session-settings.ts';
 import {
@@ -21,7 +21,7 @@ import {
  * stays silent until Craft sets a prompt, and always returns the latest prompt.
  */
 
-type Handler = (event: unknown, ctx: unknown) => unknown;
+type Handler = (event: BeforeAgentStartEvent, ctx: unknown) => unknown;
 
 function loadInline(extension: InlineExtension): Map<string, Handler[]> {
   const handlers = new Map<string, Handler[]>();
@@ -36,11 +36,22 @@ function loadInline(extension: InlineExtension): Map<string, Handler[]> {
   return handlers;
 }
 
-function invoke(handlers: Map<string, Handler[]>): unknown {
+function invoke(handlers: Map<string, Handler[]>, messageType: 'user' | 'custom' = 'user'): unknown {
   const [handler, ...rest] = handlers.get('before_agent_start') ?? [];
   expect(handler).toBeDefined();
   expect(rest).toHaveLength(0);
-  return handler!({ type: 'before_agent_start', prompt: 'hi', systemPrompt: 'SDK PROMPT' }, {});
+  const base = {
+    type: 'before_agent_start' as const,
+    systemPrompt: 'SDK PROMPT',
+    systemPromptOptions: {
+      cwd: '/offline-fixture', selectedTools: [], hiddenTools: [], toolSnippets: {},
+      toolGuidelines: {}, promptGuidelines: [], appendSystemPrompt: '', sections: {}, contextFiles: [], skills: [],
+    },
+  };
+  const event: BeforeAgentStartEvent = messageType === 'user'
+    ? { ...base, messageType, prompt: 'hi' }
+    : { ...base, messageType, message: { role: 'custom', customType: 'fixture', content: 'hi', display: false, timestamp: 0 } };
+  return handler!(event, {});
 }
 
 describe('createSystemPromptOverride', () => {
@@ -65,6 +76,14 @@ describe('createSystemPromptOverride', () => {
     expect(invoke(handlers)).toEqual({ systemPrompt: 'CRAFT_PROMPT' });
     expect(invoke(handlers)).toEqual({ systemPrompt: 'CRAFT_PROMPT' });
     expect(override.current()).toBe('CRAFT_PROMPT');
+  });
+
+  it('forces the same exact Craft prompt for idle custom runs without a user prompt field', () => {
+    const override = createSystemPromptOverride();
+    const handlers = loadInline(override.extension);
+    expect(invoke(handlers, 'custom')).toBeUndefined();
+    override.set('CRAFT_CUSTOM_PROMPT');
+    expect(invoke(handlers, 'custom')).toEqual({ systemPrompt: 'CRAFT_CUSTOM_PROMPT' });
   });
 
   it('a later set() replaces the forced prompt for the next run', () => {
