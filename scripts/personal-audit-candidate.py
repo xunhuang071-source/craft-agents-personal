@@ -8,7 +8,7 @@ p.add_argument('--app', required=True)
 p.add_argument('--baseline-inventory', required=True)
 p.add_argument('--inventory', required=True)
 p.add_argument('--out', required=True)
-p.add_argument('--scope', choices=['diagram', 'pi-sdk'], default='diagram')
+p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links'], default='diagram')
 a = p.parse_args()
 base, app, out = Path(a.base_app), Path(a.app), Path(a.out)
 old = {e['path']: e for e in json.loads(Path(a.baseline_inventory).read_text())['entries']}
@@ -67,6 +67,11 @@ review = {
      'provider-key',
      '943b839ecafef60eae285966eb79ba49213426741320e3866181a28b2c7b394d'):
     'markdown-it-task-lists documentation URL slug; reviewed source map sourcesContent, not a credential',
+    ('Contents/Resources/app/dist/renderer/assets/index-36OwcIRx.js.map',
+     '2731514f044dabae24c8415cc01fd55264040d542152885e9ea250c1356155c8',
+     'provider-key',
+     '943b839ecafef60eae285966eb79ba49213426741320e3866181a28b2c7b394d'):
+    'Same previously reviewed markdown-it-task-lists documentation URL slug in the Finder candidate source map',
 }
 findings, count = [], 0
 for file in app.rglob('*'):

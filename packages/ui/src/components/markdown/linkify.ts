@@ -18,10 +18,12 @@ const FILE_PATH_REGEX_SOURCE = `(?:^|[\\s([\\{<])((?:/|~/|\\./|\\.\\./|[A-Za-z0-
 const FILE_PATH_REGEX = new RegExp(FILE_PATH_REGEX_SOURCE, 'gi')
 const FILE_PATH_PRETEST_REGEX = new RegExp(FILE_PATH_REGEX_SOURCE, 'i')
 
-// File-path regex for markdown anchor targets (entire href/text value)
-// Used by Markdown.tsx click handler to route file links to onFileClick.
-const FILE_PATH_TARGET_REGEX = new RegExp(
-  `^(?!https?://|mailto:|ftp://|data:)(?:/|~/|\./|\.\./|[A-Za-z0-9_][\\w\\-./@%]*)[\\w\\-./@%]*\\.(?:${FILE_EXTENSIONS_PATTERN})$`,
+// Explicit path prefixes identify local anchor targets independently of file
+// extensions or filename characters (notably iCloud's com~apple~CloudDocs).
+// Bare relative targets retain the known-extension requirement to avoid treating
+// arbitrary text and hostnames as local folders.
+const BARE_FILE_PATH_TARGET_REGEX = new RegExp(
+  `^[^\\s<>]+\\.(?:${FILE_EXTENSIONS_PATTERN})(?::[0-9]+(?::[0-9]+)?)?$`,
   'i'
 )
 
@@ -280,5 +282,12 @@ export function hasLinks(text: string): boolean {
  * Used by click handlers to route local paths to onFileClick instead of onUrlClick.
  */
 export function isFilePathTarget(target: string): boolean {
-  return FILE_PATH_TARGET_REGEX.test(target.trim())
+  const path = target.trim()
+  if (!path || /[\u0000-\u001f\u007f]/.test(path)) return false
+  // Protocol-relative web links and fragment/query links are not local paths.
+  if (/^(?:\/\/|#|\?)/.test(path)) return false
+  if (/^[A-Za-z]:[\\/]/.test(path)) return true
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(path)) return false
+  if (/^(?:\/|~\/|\.\.?\/)/.test(path)) return true
+  return BARE_FILE_PATH_TARGET_REGEX.test(path)
 }

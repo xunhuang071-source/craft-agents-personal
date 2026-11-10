@@ -1671,9 +1671,20 @@ export default function App() {
     }
   }, [])
 
-  // Centralized link interceptor: classifies file types and decides whether to
-  // show an in-app preview overlay or open externally. Replaces the old
-  // handleOpenFile/handleOpenUrl that always opened in external apps.
+  // Ordinary file links reveal their location; explicit preview blocks and
+  // overlay Open actions retain their existing loaders and external opener.
+  const handleOpenFile = useCallback(async (path: string) => {
+    try {
+      await window.electronAPI.showInFolder(path)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Failed to show in folder:', error)
+      toast.error(t('toast.failedToReveal', { fileManager: getFileManagerName() }), {
+        description: message,
+      })
+    }
+  }, [t])
+
   const linkInterceptor = useLinkInterceptor({
     openFileExternal: async (path) => {
       try {
@@ -1703,17 +1714,7 @@ export default function App() {
         })
       }
     },
-    showInFolder: async (path) => {
-      try {
-        await window.electronAPI.showInFolder(path)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error'
-        console.error('Failed to show in folder:', error)
-        toast.error(t("toast.failedToReveal", { fileManager: getFileManagerName() }), {
-          description: message,
-        })
-      }
-    },
+    showInFolder: handleOpenFile,
     readFile: (path) => window.electronAPI.readFile(path),
     readFileDataUrl: (path) => window.electronAPI.readFileDataUrl(path),
     readFileBinary: (path) => window.electronAPI.readFileBinary(path),
@@ -1729,7 +1730,6 @@ export default function App() {
     })
   }, [])
 
-  const handleOpenFile = linkInterceptor.handleOpenFile
   const handleOpenUrl = linkInterceptor.handleOpenUrl
 
   const handleOpenSettings = useCallback(() => {

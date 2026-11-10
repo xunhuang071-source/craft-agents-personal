@@ -76,6 +76,30 @@ bash scripts/build-native-antigravity-release.sh
 技能 craft-fork-sync 是此文档的入口，历史 PLAYBOOK 仅供查旧方法。项目版本记录只写本仓库，不写 Notion，不将个人数据放进 Git。
 
 
+## 文件链接与 Finder 定点更新（2026-11-11 已批准例外）
+
+用户批准修复本地链接识别，并让普通文件链接点击后在 Finder 中定位。只重建 renderer 和 main。修复前组件锁为 `docs/personal/baselines/wallee-v1.2.0-rc.1.json`；此锁已与实际安装应用的完整资源及签名核对通过。两份 Pi 与其余运行组件沿用基线。
+
+从主树根目录执行：
+
+```sh
+node scripts/personal-build-finder-candidate.mjs --record-lock
+node scripts/personal-build-finder-candidate.mjs --out "$PWD/native-artifacts/new-finder-candidate"
+```
+
+脚本使用临时 HOME/config 和构建环境变量白名单；验证基础应用、定向构建 main 并重建两份 Pi 作原哈希核对，然后构建 renderer。候选只复制新的 main/renderer，保留基础应用其余资源，重新签名并做 `finder-links` 范围的全文件审计。不会安装、启动候选或读取用户 profile。清单绑定已提交的产品源码后再交付安装包；不授权远端发布。
+
+真实浏览器点击测试复用本机夹具服务：
+
+```sh
+# 终端一，只监听本机
+/path/to/verified/bun node_modules/vite/bin/vite.js --config scripts/personal-ui-tests/vite.config.ts
+# 终端二，使用生产 Markdown 组件，系统 shell 回调只记录不执行
+python3 scripts/personal-ui-tests/run-finder-links.py
+```
+
+完整验收范围与安装步骤见 [FINDER-LINKS-REVIEW.md](FINDER-LINKS-REVIEW.md)。
+
 ## 图表定点更新（2026-10-29 已批准例外）
 
 本次定点更新已由用户手动安装并验收，正式版本为 wallee-v1.1.0。原 Pi/preload/interceptor 未改变；以后继续冻结新的 renderer 基线，不自动安装或发布。

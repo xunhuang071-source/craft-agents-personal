@@ -2,6 +2,7 @@ import { describe, it, expect } from 'bun:test'
 import * as React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 import { classifyMarkdownLinkTarget, resolveMarkdownLinkTarget } from '../link-target'
 import { markdownUrlTransform } from '../url-transform'
 
@@ -74,6 +75,58 @@ describe('resolveMarkdownLinkTarget', () => {
       kind: 'url',
       url: 'mailto:test@example.com',
     })
+  })
+})
+
+describe('local file link regressions', () => {
+  it.each([
+    '/Users/test/Mobile Documents/com~apple~CloudDocs/工作/报告 final.pdf',
+    '/Users/test/输出目录/',
+    '/Users/test/LICENSE',
+    '/Users/test/report.unlisted',
+    '/Users/test/报告.md:12:3',
+    '~/工作/图表.png',
+    './输出/文件.docx',
+    '../输出目录/',
+  ])('recognizes explicit local paths: %s', (path) => {
+    expect(resolveMarkdownLinkTarget(path)).toEqual({ kind: 'file', path })
+  })
+
+  it.each([
+    'https://example.com/报告.pdf',
+    '//example.com/report.pdf',
+    'mailto:test@example.com',
+    'javascript:alert(1)',
+    'data:text/html,test',
+    'craftagents://action/new-session',
+    '#section',
+  ])('keeps URL targets out of the local file handler: %s', (url) => {
+    expect(resolveMarkdownLinkTarget(url)).toEqual({ kind: 'url', url })
+  })
+
+  it.each([
+    ['[报告](</Users/test/Mobile Documents/com~apple~CloudDocs/工作/报告 final.pdf>)',
+      '/Users/test/Mobile Documents/com~apple~CloudDocs/工作/报告 final.pdf'],
+    ['<a href="/Users/test/com~apple~CloudDocs/报告.pdf">报告</a>',
+      '/Users/test/com~apple~CloudDocs/报告.pdf'],
+    ['[文件夹](</Users/test/输出目录/>)', '/Users/test/输出目录/'],
+    ['[源码](</Users/test/com~apple~CloudDocs/源码.md:12>)',
+      '/Users/test/com~apple~CloudDocs/源码.md:12'],
+    ['[百分号](</Users/test/完成100%25/图表.png>)', '/Users/test/完成100%/图表.png'],
+  ])('routes rendered Markdown/HTML to a decoded local path: %s', (markdown, path) => {
+    const targets: ReturnType<typeof resolveMarkdownLinkTarget>[] = []
+    renderToStaticMarkup(React.createElement(ReactMarkdown, {
+      urlTransform: markdownUrlTransform,
+      rehypePlugins: [rehypeRaw],
+      components: {
+        a: ({ href }) => {
+          targets.push(resolveMarkdownLinkTarget(href ?? ''))
+          return null
+        },
+      },
+      children: markdown,
+    }))
+    expect(targets).toEqual([{ kind: 'file', path }])
   })
 })
 

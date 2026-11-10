@@ -1,6 +1,7 @@
 import { resolve } from 'path'
 import { join } from 'path'
 import { homedir } from 'os'
+import { stat } from 'fs/promises'
 import { execSync } from 'child_process'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import { getWorkspaceByNameOrId, getGitBashPath, setGitBashPath, clearGitBashPath } from '@craft-agent/shared/config'
@@ -350,8 +351,35 @@ export function registerSystemCoreHandlers(server: RpcServer, deps: HandlerDeps)
     try {
       const expanded = path.startsWith('~') ? path.replace(/^~/, homedir()) : path
       const absolutePath = resolve(expanded)
-      const safePath = await validateFilePath(absolutePath, getWorkspaceAllowedDirs(ctx.workspaceId))
-      await requestClientShowInFolder(server, ctx.clientId, safePath)
+      const allowedDirs = getWorkspaceAllowedDirs(ctx.workspaceId)
+      let safePath = await validateFilePath(absolutePath, allowedDirs)
+      let info
+      try {
+        info = await stat(safePath)
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error
+        // Agent file references may end in :line or :line:column. Prefer the
+        // literal filename when it exists (colons are valid in Unix filenames).
+        const withoutLocation = absolutePath.replace(/:[0-9]+(?::[0-9]+)?$/, '')
+        if (withoutLocation === absolutePath) throw new Error(`文件不存在：${path}`)
+        safePath = await validateFilePath(withoutLocation, allowedDirs)
+        try {
+          info = await stat(safePath)
+        } catch (locationError) {
+          const locationCode = (locationError as NodeJS.ErrnoException).code
+          if (locationCode === 'ENOENT' || locationCode === 'ENOTDIR') {
+            throw new Error(`文件不存在：${path}`)
+          }
+          throw locationError
+        }
+      }
+      if (info.isDirectory()) {
+        const result = await requestClientOpenPath(server, ctx.clientId, safePath)
+        if (result.error) throw new Error(result.error)
+      } else {
+        await requestClientShowInFolder(server, ctx.clientId, safePath)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error'
       deps.platform.logger.error('showInFolder error:', message)

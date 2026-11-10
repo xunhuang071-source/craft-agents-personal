@@ -2,7 +2,9 @@
 
 **当前正式版：wallee-v1.1.0（2026-10-29）**
 
-**本地待验收候选：wallee-v1.2.0-rc.1（2026-10-30）**，常规 Pi 与 Antigravity Pi SDK 均为 1.4.0。界面、Pele、preload、拦截器和用户数据不变；未自动安装或发布。见 [升级验证记录](docs/personal/PI-SDK-1.4-REVIEW.md)。当前主树组件锁对应候选，稳定回退锁保存在 docs/personal/baselines/wallee-v1.1.0.json。
+**本地待验收候选：wallee-v1.2.0-rc.2（2026-11-11）**，修复 iCloud、中文及文件夹链接识别，普通文件链接点击后在 Finder 中定位，文件夹直接打开。专用预览入口保留。见 [文件链接验收记录](docs/personal/FINDER-LINKS-REVIEW.md)。
+
+本候选沿用 rc.1 的两份 Pi SDK 1.4.0 引擎与运行资源，只重建界面和主进程；未自动安装或发布。[Pi 升级验证记录](docs/personal/PI-SDK-1.4-REVIEW.md)继续保留。当前主树组件锁对应 rc.2，修复前组件锁保存在 docs/personal/baselines/wallee-v1.2.0-rc.1.json，稳定回退锁保存在 docs/personal/baselines/wallee-v1.1.0.json。
 
 Pele 与展开批注已由用户手动安装并验收通过；正式版与验收候选代码哈希一致，无需重复安装。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
 
