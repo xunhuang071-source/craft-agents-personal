@@ -1,14 +1,14 @@
 # Wallee 的 Craft Agents 个人版
 
-**当前正式版：wallee-v1.1.0（2026-10-29）**
+**当前正式版：wallee-v1.2.0（2026-11-11）**
 
-**本地待验收候选：wallee-v1.2.0-rc.2（2026-11-11）**，修复 iCloud、中文及文件夹链接识别，普通文件链接点击后在 Finder 中定位，文件夹直接打开。专用预览入口保留。见 [文件链接验收记录](docs/personal/FINDER-LINKS-REVIEW.md)。
+用户已手动安装 wallee-v1.2.0-rc.2，并验证历史对话中的产出物链接能够在 Finder 中定位。正式晋升只更新版本记录和发布资产，程序代码及签名与已安装候选保持一致，无需重复安装。见 [文件链接验收记录](docs/personal/FINDER-LINKS-REVIEW.md)。
 
-本候选沿用 rc.1 的两份 Pi SDK 1.4.0 引擎与运行资源，只重建界面和主进程；未自动安装或发布。[Pi 升级验证记录](docs/personal/PI-SDK-1.4-REVIEW.md)继续保留。当前主树组件锁对应 rc.2，修复前组件锁保存在 docs/personal/baselines/wallee-v1.2.0-rc.1.json，稳定回退锁保存在 docs/personal/baselines/wallee-v1.1.0.json。
+本版修复 iCloud、中文及文件夹链接识别，普通文件链接点击后在 Finder 中选中文件，文件夹直接打开。专用预览入口保留；两份 Pi SDK 均为 1.4.0，详见 [Pi 升级验证记录](docs/personal/PI-SDK-1.4-REVIEW.md)。
 
-Pele 与展开批注已由用户手动安装并验收通过；正式版与验收候选代码哈希一致，无需重复安装。详见 [验收记录](docs/personal/PELE-REVIEW.md)。
+当前组件锁保存在 personal-release.json 和 docs/personal/baselines/wallee-v1.2.0.json；rc.1、rc.2 和上一正式版 wallee-v1.1.0 的锁均保留。Pele 与展开批注继续使用此前验收的方案，详见 [图表验收记录](docs/personal/PELE-REVIEW.md)。
 
-- [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.1.0)
+- [下载与更新说明](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.2.0)
 - [版本日志](docs/personal/CHANGELOG.md)
 - [维护手册](docs/personal/MAINTENANCE.md)
 - [准确组件清单](personal-release.json)
@@ -26,8 +26,9 @@ Pele 与展开批注已由用户手动安装并验收通过；正式版与验收
 ## 当前版本保留与新增
 
 - 在原界面结构上定点接入 Pele，统一图表显示、输入识别与校验，修复展开后原地批注。
-- 保留原 Pi 1.1 引擎、GPT-6.1 Sol 500K、oauthRelay 与此前后端改造。
-- 新增原生菜单 Antigravity 接入，以及独立管理的 CLIProxy / Pi 1.1 适配器。
+- 常规 Pi 与 Antigravity Pi 统一为 1.4.0，保留 GPT-6.1 Sol 500K、oauthRelay 与此前后端改造。
+- 保留原生菜单 Antigravity 接入，以及独立管理的 CLIProxy / Pi 适配器。
+- 普通文件链接默认在 Finder 中定位，兼容 iCloud 路径、中文、文件夹及带行号的文件引用。
 - 官方自动更新保持关闭。账户授权、API 密钥和历史对话仍由本机原位置保存，不进入此仓库或发布包。
 
 ## 存储与回退

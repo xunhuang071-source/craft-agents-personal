@@ -78,7 +78,9 @@ bash scripts/build-native-antigravity-release.sh
 
 ## 文件链接与 Finder 定点更新（2026-11-11 已批准例外）
 
-用户批准修复本地链接识别，并让普通文件链接点击后在 Finder 中定位。只重建 renderer 和 main。修复前组件锁为 `docs/personal/baselines/wallee-v1.2.0-rc.1.json`；此锁已与实际安装应用的完整资源及签名核对通过。两份 Pi 与其余运行组件沿用基线。
+用户批准修复本地链接识别，并让普通文件链接点击后在 Finder 中定位；2026-11-11 手动安装 rc.2 并验证历史对话后，授权晋升正式版 wallee-v1.2.0。初次修复只重建 renderer 和 main，修复前组件锁为 `docs/personal/baselines/wallee-v1.2.0-rc.1.json`。正式晋升不再重建任何程序组件。
+
+后续构建默认使用 `docs/personal/baselines/wallee-v1.2.0.json` 与正式 Release 基础包；需要复现历史输入时，可显式指定 `--baseline-lock docs/personal/baselines/wallee-v1.2.0-rc.1.json --base-app /path/to/verified-rc.1/Craft\ Agents.app`。两份 Pi 与其余运行组件按相应基线核对。
 
 从主树根目录执行：
 
@@ -87,7 +89,7 @@ node scripts/personal-build-finder-candidate.mjs --record-lock
 node scripts/personal-build-finder-candidate.mjs --out "$PWD/native-artifacts/new-finder-candidate"
 ```
 
-脚本使用临时 HOME/config 和构建环境变量白名单；验证基础应用、定向构建 main 并重建两份 Pi 作原哈希核对，然后构建 renderer。候选只复制新的 main/renderer，保留基础应用其余资源，重新签名并做 `finder-links` 范围的全文件审计。不会安装、启动候选或读取用户 profile。清单绑定已提交的产品源码后再交付安装包；不授权远端发布。
+脚本使用临时 HOME/config 和构建环境变量白名单；验证基础应用、定向构建 main 并重建两份 Pi 作原哈希核对，然后构建 renderer。候选只复制新的 main/renderer，保留基础应用其余资源，重新签名并做 `finder-links` 范围的全文件审计。不会安装、启动候选或读取用户 profile。清单绑定已提交的产品源码后再交付安装包。2026-11-11 的正式发布已获用户授权；未来版本仍按每次改动与发布的流程确认。
 
 真实浏览器点击测试复用本机夹具服务：
 
@@ -136,3 +138,11 @@ python3 scripts/personal-ui-tests/run-e2e.py
 2026-10-29 用户手动安装候选并确认满意，随后批准正式版本管理与私有 Release 发布。晋升仅更新源码记录、版本锁、标签和代码包，不重建、不重新签名、不替换正在使用的程序。正式包必须与该安装版的主程序、renderer、Pi、preload、interceptor 哈希相同。
 
 `frozenBaseAsset` 指向当前正式包，供后续普通后端维护使用；`rendererUpdate.baselineAsset` 保留原 1.0.0 构建来源。两个历史基线锁均保留，不覆盖旧版标签和资产。发行包只包含代码、校验清单和已脱离真实 profile 的验证摘要。
+
+## wallee-v1.2.0 正式晋升记录
+
+2026-11-11 用户手动安装 rc.2，并确认历史对话中的产出物链接能够弹出 Finder，随后批准同步私有 GitHub 仓库和正式版本管理。
+
+晋升保持已安装程序与候选 ZIP 的全部字节不变，只更新版本锁、验收记录、发布资产名和不可变标签。主程序源码在 main，引擎固定为 8c433bd85c3a2438042d413b830c347be85cc854 并同步 engine。前述 Pi 1.4 本地升级随本次正式包一起归档，其原有测试限制保留。
+
+`frozenBaseAsset` 指向 wallee-v1.2.0 正式包，`docs/personal/baselines/wallee-v1.2.0.json` 为新稳定锁；rc.1、rc.2 与 1.1.0 锁均保留。安装包与 SHA256SUMS、版本/源码清单、完整应用文件清单和安全验证摘要一并存入私有 Release。仓库保持 private，Actions 关闭，不覆盖旧版本，不重新安装用户当前程序。

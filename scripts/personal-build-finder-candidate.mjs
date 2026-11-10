@@ -12,12 +12,12 @@ const options = {}
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i]
   if (key === '--record-lock') options.record = true
-  else if (['--base-app', '--out'].includes(key) && process.argv[i + 1]) options[key.slice(2)] = process.argv[++i]
-  else throw Error('Use [--base-app PATH] [--out PATH] [--record-lock]')
+  else if (['--base-app', '--baseline-lock', '--out'].includes(key) && process.argv[i + 1]) options[key.slice(2)] = process.argv[++i]
+  else throw Error('Use [--base-app PATH] [--baseline-lock PATH] [--out PATH] [--record-lock]')
 }
 const lockPath = path.join(root, 'personal-release.json')
-const baselineLock = path.join(root, 'docs/personal/baselines/wallee-v1.2.0-rc.1.json')
 const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'))
+const baselineLock = path.resolve(root, options['baseline-lock'] || `docs/personal/baselines/${lock.version}.json`)
 const baseline = JSON.parse(fs.readFileSync(baselineLock, 'utf8'))
 const base = fs.realpathSync(options['base-app'] || '/Applications/Craft Agents.app')
 const build = path.join(root, '.personal-build/finder-links')

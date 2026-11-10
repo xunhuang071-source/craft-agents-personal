@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "wallee-v1.2.0-rc.2",
+  "version": "wallee-v1.2.0",
   "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
@@ -32,8 +32,8 @@
   },
   "frozenBaseAsset": {
     "repository": "xunhuang071-source/craft-agents-personal",
-    "tag": "wallee-v1.1.0",
-    "asset": "Craft-Agents-wallee-v1.1.0-mac-arm64.zip",
+    "tag": "wallee-v1.2.0",
+    "asset": "Craft-Agents-wallee-v1.2.0-mac-arm64.zip",
     "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
   },
   "officialAutomaticUpdates": false,
@@ -61,10 +61,15 @@
     "codeChangedAfterAcceptance": false
   },
   "acceptance": {
-    "version": "wallee-v1.2.0-rc.2",
-    "installedByUser": false,
-    "manualCheck": "pending",
-    "published": false
+    "version": "wallee-v1.2.0",
+    "candidateVersion": "wallee-v1.2.0-rc.2",
+    "date": "2026-11-11",
+    "installedByUser": true,
+    "manualFileLinksCheck": "passed",
+    "historicalConversationLinksCheck": "passed",
+    "installedInventoryMatchesCandidate": true,
+    "codeChangedAfterAcceptance": false,
+    "publicationAuthorizedByUser": true
   },
   "piSdkUpgrade": {
     "version": "1.4.0",
@@ -74,12 +79,12 @@
     "scope": "host Pi SDK bridge and two Pi bundles only; renderer/preloads/interceptor remain frozen",
     "standardAdapterSource": "v0.15.1 / 2e3ba53f plus the installed 2026-10-25 workspace instruction isolation patch, now source-owned",
     "installedAutomatically": false,
-    "published": false
+    "releasedIn": "wallee-v1.2.0"
   },
   "fileLinkUpdate": {
     "baselineLock": "docs/personal/baselines/wallee-v1.2.0-rc.1.json",
     "scope": "Local file link recognition, Finder routing, directory/existence and line-reference handling",
     "installedAutomatically": false,
-    "published": false
+    "releasedIn": "wallee-v1.2.0"
   }
 }
