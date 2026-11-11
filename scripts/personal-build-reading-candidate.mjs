@@ -11,7 +11,7 @@ if (!baseArg || !outArg || !/^wallee-v\d+\.\d+\.\d+-rc\.\d+$/.test(version || ''
 const base = fs.realpathSync(baseArg), out = path.resolve(outArg), app = path.join(out, 'Craft Agents.app')
 if (fs.existsSync(out) || out.startsWith('/Applications/') || app === base || app.startsWith(base + path.sep) || base.startsWith(app + path.sep)) throw Error('Choose a fresh, non-overlapping candidate directory')
 const lockPath = path.join(root, 'personal-release.json'), baseline = JSON.parse(fs.readFileSync(lockPath, 'utf8'))
-if (!['wallee-v1.4.0', 'wallee-v1.4.1'].includes(baseline.version)) throw Error('Review the stable baseline before using this build')
+if (!['wallee-v1.4.0', 'wallee-v1.4.1', 'wallee-v1.5.0'].includes(baseline.version)) throw Error('Review the stable baseline before using this build')
 const work = path.join(root, '.personal-build'); fs.mkdirSync(work, { recursive: true })
 const staging = fs.mkdtempSync(path.join(work, 'diagram-reading-')), renderer = path.join(staging, 'renderer')
 const bun = path.join(base, 'Contents/Resources/app/vendor/bun/bun')

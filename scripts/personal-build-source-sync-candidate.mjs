@@ -10,7 +10,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const [baseArg,outArg,version]=process.argv.slice(2)
 if(!baseArg||!outArg||!/^wallee-v\d+\.\d+\.\d+-rc\.\d+$/.test(version||''))throw Error('Usage: node scripts/personal-build-source-sync-candidate.mjs VERIFIED_BASE_APP NEW_OUTPUT_DIR VERSION')
 const base=fs.realpathSync(baseArg),out=path.resolve(outArg),app=path.join(out,'Craft Agents.app'),lockPath=path.join(root,'personal-release.json'),baseline=JSON.parse(fs.readFileSync(lockPath,'utf8'))
-if(baseline.version!=='wallee-v1.4.1')throw Error('Review baseline first')
+if(!['wallee-v1.4.1','wallee-v1.5.0'].includes(baseline.version))throw Error('Review baseline first')
 if(fs.existsSync(out)||out.startsWith('/Applications/')||app===base||app.startsWith(base+path.sep)||base.startsWith(app+path.sep))throw Error('Choose a fresh non-overlapping output directory')
 const staging=fs.mkdtempSync(path.join(os.tmpdir(),'craft-source-build-')),bun=path.join(base,'Contents/Resources/app/vendor/bun/bun')
 const env={HOME:staging,USERPROFILE:staging,CRAFT_CONFIG_DIR:path.join(staging,'config'),PATH:'/usr/bin:/bin:/usr/sbin:/sbin',TMPDIR:os.tmpdir()}

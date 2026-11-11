@@ -13,7 +13,7 @@ if(fs.existsSync(out))throw Error('Choose a fresh output directory');
 const parent=fs.realpathSync(path.dirname(out));
 if(parent==='/Applications'||parent.startsWith('/Applications/')||parent===base||parent.startsWith(base+path.sep))throw Error('Output must be outside Applications and the baseline app');
 const baselinePath=path.join(root,'personal-release.json'),baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8'));
-if(!['wallee-v1.3.0','wallee-v1.4.0','wallee-v1.4.1'].includes(baseline.version))throw Error('Review and approve the current stable baseline before building');
+if(!['wallee-v1.3.0','wallee-v1.4.0','wallee-v1.4.1','wallee-v1.5.0'].includes(baseline.version))throw Error('Review and approve the current stable baseline before building');
 const runtime='Contents/Resources/app',main=`${runtime}/dist/main.cjs`;
 const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'craft-review-build-'));
 const env={HOME:fixture,USERPROFILE:fixture,CRAFT_CONFIG_DIR:path.join(fixture,'config'),PATH:'/usr/bin:/bin:/usr/sbin:/sbin',TMPDIR:os.tmpdir()};

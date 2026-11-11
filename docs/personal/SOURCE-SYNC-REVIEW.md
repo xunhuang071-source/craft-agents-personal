@@ -1,6 +1,6 @@
 # MCP scopes 与数据源工具同步 · 2026-11-11
 
-用户明确批准 MCP 显式 scopes 和关闭源后移除旧工具，排除分支重复 fork 修复。以正式版 wallee-v1.4.1 为基线，交付本地候选 wallee-v1.5.0-rc.1，不自动安装或发布。
+用户明确批准 MCP 显式 scopes 和关闭源后移除旧工具，排除分支重复 fork 修复。以正式版 wallee-v1.4.1 为基线交付候选 wallee-v1.5.0-rc.1，用户已安装验收并批准公开发布为 wallee-v1.5.0。已安装程序与候选完整清单、签名及生效的 sources 指南一致，正式晋升仅更新元数据，不重新构建、签名或安装。
 
 ## MCP scopes
 
@@ -34,8 +34,8 @@ OAuth 桌面路径的模块 mock 测试应单独运行，避免影响同进程�
 
 `node scripts/personal-build-source-sync-candidate.mjs VERIFIED_1_4_1_APP NEW_OUTPUT_DIR wallee-v1.5.0-rc.1`
 
-只重建主进程和标准 Pi adapter，替换 sources.md。renderer、preloads、interceptor、Electron、视觉批注模块及其他资源冻结，使用 source-sync 审计范围核对全文件差异。候选组件锁单独保存在输出目录；正式锁仍为 1.4.1。
+只重建主进程和标准 Pi adapter，替换 sources.md。renderer、preloads、interceptor、Electron、视觉批注模块及其他资源冻结，使用 source-sync 审计范围核对全文件差异。候选组件锁单独保存在输出目录；正式锁现为 1.5.0，原候选锁继续保留。
 
 候选内实际 Pi adapter 再次通过 13 项子进程检查。全文件审计恰好只变化 main、标准 Pi、sources.md 及必要签名，共 5 处；无新增/删除文件，无其他漂移。1443 个文本代码资源扫描没有未审查命中。ZIP 解压后的 1741 个文件、14 个符号链接与候选完全一致，签名复验通过。安装包、组件锁和 SHA256SUMS 位于本地 `native-artifacts/source-sync-v1.5.0-rc.1/`。
 
-用户自行安装并验收后，再决定正式晋升和公开 Release。不启动真实账号测试，不更改模型默认值，不重新引入已退役运行时。
+用户已明确授权晋升与公开 Release；正式安装包与候选字节完全相同。不启动真实账号测试，不更改模型默认值，不重新引入已退役运行时。

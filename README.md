@@ -6,10 +6,10 @@
 
 ## 下载与安装
 
-**当前正式版：[wallee-v1.4.1](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.4.1)**
+**当前正式版：[wallee-v1.5.0](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.5.0)**
 
-- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.4.1/Craft-Agents-wallee-v1.4.1-mac-arm64.zip)
-- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.4.1/SHA256SUMS)
+- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.0/Craft-Agents-wallee-v1.5.0-mac-arm64.zip)
+- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.0/SHA256SUMS)
 - [版本日志](docs/personal/CHANGELOG.md)
 
 当前提供 macOS Apple Silicon 构建。退出旧版应用后，解压 ZIP，将 `Craft Agents.app` 拖入“应用程序”替换。程序采用本地 ad-hoc 签名，未进行 Apple 公证；请先核对下载校验值，并按 macOS 的安全提示处理首次打开。
@@ -17,6 +17,10 @@
 首次使用需配置自己的模型连接、订阅或 API 凭据。发行包不包含维护者的账户、密钥、对话、图片、工作区或技能集合。
 
 ## 主要功能
+
+### 数据源授权与工具同步
+
+MCP OAuth 可通过源配置中的可选 `mcp.scopes` 请求服务支持的授权范围；未填写时保留默认行为，新增范围需对该源重新授权。关闭源后，下一次请求前更新活动工具列表，保留内置和会话工具；重新启用原工具不重建会话。生成或权限等待期间关闭源后的过期调用会被阻断。Pi 依赖仍为 1.4.0，分支重复 fork 修复不在本版范围内。详见 [实现与验收](docs/personal/SOURCE-SYNC-REVIEW.md)。
 
 ### 图表阅读与预览手势
 
@@ -58,7 +62,7 @@ HTML 当前支持自包含静态文件：内联样式和 data 图片可用，业
 ## 构建与版本管理
 
 - `main`：当前社区版主程序、工作台、构建和维护记录。
-- `engine`：历史版本使用的独立 Antigravity 引擎来源；当前 1.4.1 应用不包含该引擎。
+- `engine`：历史版本使用的独立 Antigravity 引擎来源；当前 1.5.0 应用不包含该引擎。
 - `extensions/visual-review/`：版本化工作台源码及独立依赖锁。
 - `personal-release.json`：正式版组件锁、验收记录及模块版本。
 - Release：代码安装包、完整应用文件清单、SHA256 和验证摘要。大文件不存入 Git/LFS。
