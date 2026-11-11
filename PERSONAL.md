@@ -2,6 +2,8 @@
 
 **当前本地正式版为 wallee-v1.3.0（2026-11-11）。**
 
+本地新增待验收候选 **wallee-v1.4.0-rc.1**，内置图片与 HTML 批注工作台；未自动安装或发布。[工作台集成与验收](docs/personal/VISUAL-REVIEW-REVIEW.md)
+
 用户已手动安装候选版并验证对话。主程序与完整应用清单均与验收候选一致。应用只使用标准 Pi 1.4.0，继续支持 Claude 模型以及现有数据源和工作流。[单 Pi 验证记录](docs/personal/PI-ONLY-REVIEW.md)
 
 - [版本日志](docs/personal/CHANGELOG.md)

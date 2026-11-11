@@ -77,7 +77,7 @@ review = {
 }
 findings, count = [], 0
 for file in app.rglob('*'):
-    if not file.is_file() or file.is_symlink() or file.suffix not in {'.js', '.cjs', '.mjs', '.map', '.json', '.md', '.ts', '.tsx'}:
+    if not file.is_file() or file.is_symlink() or file.suffix not in {'.js', '.cjs', '.mjs', '.map', '.json', '.md', '.ts', '.tsx', '.html', '.css', '.txt'}:
         continue
     count += 1
     data = file.read_bytes()

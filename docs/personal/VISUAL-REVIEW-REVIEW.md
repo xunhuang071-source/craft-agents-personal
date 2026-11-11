@@ -25,6 +25,15 @@ node scripts/personal-visual-review-smoke.mjs '/path/to/candidate/Craft Agents.a
 
 依赖仅在开发/打包时安装。候选应用使用已有 Electron utilityProcess 和自带 Bun，不需要用户安装 Node、npm 或工作区临时脚本。
 
+## 已完成验收
+
+- 10 项宿主测试通过，Electron TypeScript 检查通过。
+- Electron 39.2.7 隔离夹具验证真实 utilityProcess、应用自带 Bun 命令、资源加载和退出清理；未读取真实 profile。
+- 候选签名、冻结资源与全文件审计通过。新增 10 个工作台/指南文件，主程序及必要签名变化，无其他组件漂移。
+- 1443 个代码/静态文本资源扫描，无未审查的高置信密钥匹配。
+- 185 MiB ZIP 解压后，1741 个文件及 14 个符号链接的清单与候选一致，签名复验通过。
+- 完整组件锁、候选清单、SHA256SUMS 和 validation-summary.json 位于本地 `native-artifacts/visual-review-v1.4.0-rc.1/`。正式版仍为 wallee-v1.3.0。
+
 ## 验收与发布
 
 - 宿主回归覆盖发现文件权限、认证、浏览器来源拒绝、并发复用、内置资源、命令入口、源文件变更、非法路径与进程回收。
