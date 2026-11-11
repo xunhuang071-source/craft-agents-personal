@@ -28,6 +28,14 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 ## 最小构建
 
+wallee-v1.3.0 单 Pi 版本使用以下入口。输入为按历史组件锁校验的 wallee-v1.2.0 基础应用。脚本定向编译主进程，校验标准 Pi 和冻结资源，并生成签名候选。
+
+```sh
+node scripts/personal-build-pi-only.mjs '/path/to/wallee-v1.2.0/Craft Agents.app' "$PWD/native-artifacts/new-pi-only-candidate"
+```
+
+下列旧构建命令用于需要独立 Antigravity 引擎的历史版本。
+
 以下脚本按组件锁定向编译，不编译 renderer、preload 或 interceptor。旧稳定版只重建主进程和独立适配器；2026-10-30 获批的 Pi SDK 1.4 候选额外从主树构建常规 Pi。两份 Pi 分别记录期望哈希；不得用冻结 bundle 替代新版本源码。命令从 main 树根目录执行：
 
 ```sh

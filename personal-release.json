@@ -1,23 +1,20 @@
 {
   "schemaVersion": 1,
-  "version": "wallee-v1.2.0",
+  "version": "wallee-v1.3.0",
   "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
   "upstream": {
     "host": "v0.14.1",
-    "managedEngine": "v0.15.1",
     "piSdk": "1.4.0"
   },
-  "engineCommit": "8c433bd85c3a2438042d413b830c347be85cc854",
   "build": {
     "bun": "1.3.9",
     "esbuild": "0.25.12",
     "oauthDefines": "empty; user credentials are never build inputs"
   },
   "expectedBuild": {
-    "mainSha256": "4cd9fe8eac985790896de3e4742d9273fe811c8df9045d146dd236e32dcfb4a5",
-    "managedPiSha256": "09578725ccaabb332e2c812cd5367fcc3557d50b51c2adeb09b456edd053d920",
+    "mainSha256": "3bda6fa0fafa6b3a9c2cc94ca1ae141893cbe89a192b849041a00e6c06968432",
     "standardPiSha256": "90bff5453e4c18bacf84d63b5d489aa054b53d218af18c6257562c77174d54cb"
   },
   "frozen": {
@@ -53,20 +50,22 @@
     }
   },
   "previousAcceptance": {
-    "version": "wallee-v1.1.0",
-    "candidateVersion": "wallee-v1.1.0-rc.1",
-    "date": "2026-10-29",
-    "installedByUser": true,
-    "manualMermaidAndAnnotationCheck": "passed",
-    "codeChangedAfterAcceptance": false
-  },
-  "acceptance": {
     "version": "wallee-v1.2.0",
     "candidateVersion": "wallee-v1.2.0-rc.2",
     "date": "2026-11-11",
     "installedByUser": true,
     "manualFileLinksCheck": "passed",
     "historicalConversationLinksCheck": "passed",
+    "installedInventoryMatchesCandidate": true,
+    "codeChangedAfterAcceptance": false,
+    "publicationAuthorizedByUser": true
+  },
+  "acceptance": {
+    "version": "wallee-v1.3.0",
+    "candidateVersion": "wallee-v1.3.0-rc.1",
+    "date": "2026-11-11",
+    "installedByUser": true,
+    "manualConversationCheck": "passed",
     "installedInventoryMatchesCandidate": true,
     "codeChangedAfterAcceptance": false,
     "publicationAuthorizedByUser": true
@@ -86,5 +85,11 @@
     "scope": "Local file link recognition, Finder routing, directory/existence and line-reference handling",
     "installedAutomatically": false,
     "releasedIn": "wallee-v1.2.0"
+  },
+  "piOnly": {
+    "baselineLock": "docs/personal/baselines/wallee-v1.2.0.json",
+    "implementationCommit": "2f8349d8661407f7e0f5afa81b6d784a199e2680",
+    "buildScript": "scripts/personal-build-pi-only.mjs",
+    "managedEngineIncluded": false
   }
 }

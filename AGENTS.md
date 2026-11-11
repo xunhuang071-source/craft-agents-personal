@@ -11,6 +11,7 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 - Approved 2026-10-30 exception: Pi SDK 1.4.0 candidate. Rebuild both Pi bundles and required host SDK bridges, with source and locks aligned. Renderer, preloads, interceptor, Electron and CLIProxy remain frozen. Local candidate only; installation, real-account tests and publication need separate approval. See docs/personal/PI-SDK-1.4-REVIEW.md.
 - Approved 2026-10-29 exception: Pele renderer/editor detection, diagram annotations and host Mermaid validation. The candidate was manually installed and accepted on 2026-10-29; stable release is wallee-v1.1.0. Do not reinstall the accepted code as part of metadata-only promotion. Use scripts/personal-build-diagram-candidate.mjs and docs/personal/PELE-REVIEW.md. Both Pi bundles, preloads and interceptor remain byte-identical; static old validator bytes in Pi are not an active fallback.
 - Accepted 2026-11-11: the user installed wallee-v1.2.0-rc.2, verified historical output links in Finder, and authorized private GitHub publication as wallee-v1.2.0. Promotion changes metadata only; do not rebuild, re-sign or reinstall the accepted program. Both Pi SDK 1.4.0 bundles and the Finder fix are source-owned and locked. Use scripts/personal-build-finder-candidate.mjs and docs/personal/FINDER-LINKS-REVIEW.md for future approved work; current renderer, preloads and interceptor remain frozen.
+- Accepted 2026-11-11: wallee-v1.3.0 uses standard Pi only. Build this line with `scripts/personal-build-pi-only.mjs` and retain the verified wallee-v1.2.0 base asset. Mag派 owns the replacement Antigravity connection. The managed engine branch remains a historical release input.
 - Keep application identity and the existing user profile path. Do not silently change the default model or import a test profile.
 - Plan first; implement only after explicit user approval. Do not interrupt or replace the running application.
 
@@ -18,7 +19,7 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 
 - The private repository is https://github.com/xunhuang071-source/craft-agents-personal. Host source is on main; managed engine source is separately pinned on engine.
 - Commit source and lockfiles before publishing. Runtime bundle-only patches are not a complete deliverable: mirror changes in source and record any frozen resources.
-- Build from repository roots using scripts/personal-build.mjs. Do not run the generic full Electron build; it rebuilds frozen UI/preloads/old Pi.
+- Build from repository roots using the script specified by the current release lock. Do not run the generic full Electron build; it rebuilds frozen UI/preloads/old Pi.
 - Follow the manual release checklist in docs/personal/MAINTENANCE.md. Never enable imported Actions workflows or official auto-updates without separate approval.
 - Keep release archives in private GitHub Releases, not Git/LFS. Exclude node_modules, generated binaries, profiles and logs from Git.
 - Include `Co-Authored-By: Craft Agent <agents-noreply@craft.do>` on agent-created commits; use GitHub's private noreply identity, not a local hostname.
