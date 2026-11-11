@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "version": "wallee-v1.5.0-rc.1",
+  "baselineVersion": "wallee-v1.4.1",
+  "sourceCommit": "b172d9363e11b3e002a3ba90de6673078587ae77",
+  "sourceDirty": false,
+  "mainSha256": "0cbab6cd859540410391040c92ffd1163add9e7393bd26892f27ab20808f203e",
+  "standardPiSha256": "a24f85daf9df5dcb6bc39024d8093c42891b050552958f8194f93c66d76ec698",
+  "installed": false,
+  "published": false,
+  "validation": {
+    "suites": [
+      {
+        "suite": "oauth.test.ts.log",
+        "passed": 83,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "oauth-scopes-desktop.test.ts.log",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "oauth-relay.test.ts.log",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "mcp-scopes-config.test.ts.log",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "host-test.log",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "pi-browser-tool-toggle.test.ts.log",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "proxy-tool-sync.test.ts.log",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "compaction-wait.test.ts.log",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "failure-preserves.log",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      {
+        "suite": "final-integration.log",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 4
+      }
+    ],
+    "passed": 120,
+    "skipped": 4,
+    "failed": 0,
+    "hostTypecheckPassed": true,
+    "piTypecheckPassed": true,
+    "forkLogicByteIdentical": true,
+    "version": "wallee-v1.5.0-rc.1",
+    "candidatePiTestsPassed": 13,
+    "unexpectedComponentChanges": [],
+    "zipExtractInventoryMatches": true,
+    "zipSignatureVerified": true,
+    "archiveSha256": "598820366827612495ed772aabe6652ae86a5467c4866334821bebf8f026a2e7",
+    "archiveBytes": 193273061,
+    "installed": false,
+    "published": false,
+    "liveOAuthAccountTested": false
+  }
+}

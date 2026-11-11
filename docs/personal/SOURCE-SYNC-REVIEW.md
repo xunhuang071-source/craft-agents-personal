@@ -36,4 +36,6 @@ OAuth 桌面路径的模块 mock 测试应单独运行，避免影响同进程�
 
 只重建主进程和标准 Pi adapter，替换 sources.md。renderer、preloads、interceptor、Electron、视觉批注模块及其他资源冻结，使用 source-sync 审计范围核对全文件差异。候选组件锁单独保存在输出目录；正式锁仍为 1.4.1。
 
+候选内实际 Pi adapter 再次通过 13 项子进程检查。全文件审计恰好只变化 main、标准 Pi、sources.md 及必要签名，共 5 处；无新增/删除文件，无其他漂移。1443 个文本代码资源扫描没有未审查命中。ZIP 解压后的 1741 个文件、14 个符号链接与候选完全一致，签名复验通过。安装包、组件锁和 SHA256SUMS 位于本地 `native-artifacts/source-sync-v1.5.0-rc.1/`。
+
 用户自行安装并验收后，再决定正式晋升和公开 Release。不启动真实账号测试，不更改模型默认值，不重新引入已退役运行时。
