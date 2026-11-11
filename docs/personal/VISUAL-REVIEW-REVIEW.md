@@ -1,6 +1,6 @@
 # wallee-v1.4.0-rc.1 · 内置批注工作台
 
-2026-11-11 用户批准做到“随自有 Craft 一起打包”，本次为本地候选，不自动安装或发布。
+2026-11-11 用户批准做到“随自有 Craft 一起打包”，随后手动安装并认可候选，明确批准公开仓库及发布正式版 wallee-v1.4.0。正式包与候选程序字节完全相同，不要求再次安装。以下保留候选构建与隔离验收过程。
 
 ## 范围
 
@@ -19,7 +19,7 @@
 npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional
 node extensions/visual-review/build.mjs
 node --test extensions/visual-review/tests/host.test.mjs
-node scripts/personal-build-visual-review.mjs '/path/to/verified-v1.3.0/Craft Agents.app' '/path/to/fresh-candidate-dir'
+node scripts/personal-build-visual-review.mjs '/path/to/verified-base/Craft Agents.app' '/path/to/fresh-candidate-dir' 'wallee-v1.5.0-rc.1'
 node scripts/personal-visual-review-smoke.mjs '/path/to/candidate/Craft Agents.app'
 ```
 
@@ -32,12 +32,12 @@ node scripts/personal-visual-review-smoke.mjs '/path/to/candidate/Craft Agents.a
 - 候选签名、冻结资源与全文件审计通过。新增 10 个工作台/指南文件，主程序及必要签名变化，无其他组件漂移。
 - 1443 个代码/静态文本资源扫描，无未审查的高置信密钥匹配。
 - 185 MiB ZIP 解压后，1741 个文件及 14 个符号链接的清单与候选一致，签名复验通过。
-- 完整组件锁、候选清单、SHA256SUMS 和 validation-summary.json 位于本地 `native-artifacts/visual-review-v1.4.0-rc.1/`。正式版仍为 wallee-v1.3.0。
+- 完整组件锁、候选清单、SHA256SUMS 和 validation-summary.json 位于本地 `native-artifacts/visual-review-v1.4.0-rc.1/`。该候选于用户验收后晋升正式版 wallee-v1.4.0。
 
 ## 验收与发布
 
 - 宿主回归覆盖发现文件权限、认证、浏览器来源拒绝、并发复用、内置资源、命令入口、源文件变更、非法路径与进程回收。
 - Electron TypeScript 检查；定向构建、签名与完整应用清单；visual-review 范围审计只允许主进程和新增资源变化。
 - 隔离 Electron 夹具使用候选自带运行时及真实 utilityProcess，测试内置 Bun 命令、资源可访问和退出清理；不使用真实账号或 profile。
-- 用户安装验收与私有 Release 发布另行决定。当前正式版本锁仍为 wallee-v1.3.0，本次 candidate-manifest 与 component-lock 保存于候选目录。
+- 用户已完成安装验收并授权本仓库公开。正式版本锁为 wallee-v1.4.0；原候选清单继续保留，公开前审查说明见 PUBLICATION-REVIEW.md。
 - 更新时用户退出 Craft，拖入候选应用覆盖。回退只替换应用代码，不覆盖现有对话或反馈目录。

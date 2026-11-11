@@ -1,642 +1,80 @@
-> **Wallee 个人版**：本仓库不跟随官方整包升级。请先读 [个人版说明](PERSONAL.md)，下载程序请使用 [私有 Releases](https://github.com/xunhuang071-source/craft-agents-personal/releases)。下文为保留的上游项目介绍，不作为本个人版的升级操作指南。
+# Craft Agents · Wallee 社区版
 
-<div align="center">
-  <a href="https://trendshift.io/repositories/20714" target="_blank"><img src="https://trendshift.io/api/badge/repositories/20714" alt="craft-ai-agents%2Fcraft-agents-oss | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
+基于 [Craft Agents](https://github.com/craft-ai-agents/craft-agents-oss) 的独立社区发行版。保留多会话 Agent 工作流，提供图片和 HTML 的本地批注工作台，并选择性维护模型接入、文件链接和图表体验。
 
-# Craft Agents
+本项目与 Craft Docs Ltd. 无隶属或官方背书关系。应用的名称、身份与数据路径沿用既有兼容约定，个人版版本号以本仓库 Release 为准；应用内部可能仍显示上游的 `0.14.1`。
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+## 下载与安装
 
-## How it Works (Video)
-To understand what Craft Agents does and how it works watch this video.
+**当前正式版：[wallee-v1.4.0](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.4.0)**
 
-[![Demo Video](https://img.youtube.com/vi/xQouiAIilvU/hqdefault.jpg)](https://www.youtube.com/watch?v=xQouiAIilvU)
+- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.4.0/Craft-Agents-wallee-v1.4.0-mac-arm64.zip)
+- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.4.0/SHA256SUMS)
+- [版本日志](docs/personal/CHANGELOG.md)
 
-[Click Here (or on the image above) to watch the video on YouTube →](https://www.youtube.com/watch?v=xQouiAIilvU)
+当前提供 macOS Apple Silicon 构建。退出旧版应用后，解压 ZIP，将 `Craft Agents.app` 拖入“应用程序”替换。程序采用本地 ad-hoc 签名，未进行 Apple 公证；请先核对下载校验值，并按 macOS 的安全提示处理首次打开。
 
+首次使用需配置自己的模型连接、订阅或 API 凭据。发行包不包含维护者的账户、密钥、对话、图片、工作区或技能集合。
 
-## Why Craft Agents was built
-Craft Agents is a tool we built so that we (at craft.do) can work effectively with agents. It enables intuitive multitasking, no-fluff connection to any API or Service, sharing sessions, and a more document (vs code) centric workflow - in a beautiful and fluid UI.
+## 主要功能
 
-It uses the Claude Agent SDK and the Pi SDK side by side—building on what we found great and improving areas where we've desired improvements.
+### 图片与 HTML 批注
 
-It's built with Agent Native software principles in mind, and is highly customisable out of the box. One of the first of its kind.
+内置工作台 **0.1.0**，由应用按需启动，退出时回收。
 
-Craft Agents is open source under the Apache 2.0 license - so you are free to remix, change anything. And that's actually possible. We ourselves are building Craft Agents with Craft Agents only - no code editors - so really, any customisation is just a prompt away.
+- 图片：涂抹、擦除、矩形、点位、撤销重做、显示/隐藏选区。
+- HTML：精确拖选字符范围；对图片等图形做涂抹、框选或点位批注。
+- 草稿在本机保存，可重新打开继续编辑。
+- 每条意见关联原文件 SHA-256、字符范围或原尺寸蒙版，支持 Agent 读取后修改并交付新版。
+- 反馈留在项目目录，应用升级时继续使用。当前回传方式为复制指令到 Agent 对话，尚未提供自动发送或原生批注按钮。
 
-We built Craft Agents because we wanted a better, more opinionated (and preferably non-CLI way) of working with the most powerful agents in the world. We'll continue to improve it, based on our experiences and intuition.
+工作台无需额外安装 Node 或 npm。macOS 默认安装位置下，可以让 Agent 按以下方式打开文件：
 
-<img width="1578" height="894" alt="image" src="https://github.com/user-attachments/assets/3f1f2fe8-7cf6-4487-99ff-76f6c8c0a3fb" />
-
-## Things that are hard to believe "just work"
-
-**How do I connect to Linear, Gmail, Slack...?**
-Tell the agent "add Linear as a source." It finds public APIs and MCP servers, reads their docs, sets up credentials, and configures everything. No config files, no setup wizards.
-
-[Check out how I just connected to Slack →](https://thecraftagents.com/s/DRNQEiy8w2e1v5LPgKl8b)
-
-**I already have my MCP config JSON.**
-Paste it. The agent handles the rest.
-
-**What about local MCPs?**
-Fully supported. Stdio-based MCP servers run as local subprocesses on your machine. Point it at an npx command, a Python script, or any local binary. It just works.
-
-**Can it handle custom APIs?**
-Yes. Paste an OpenAPI spec, some endpoint URLs, screenshots of docs, whatever you have. It figures it out and guides you through the rest.
-
-**APIs too? Not just MCPs?**
-Craft Agents connects to anything. We have it hooked up to a direct Postgres DB behind a jumpbox. Skills + Sources = magic.
-
-**How do I import my Claude Code skills and MCPs?**
-Tell the agent you want to import your skills from Claude Code. It handles the migration.
-
-[Here I imported all my skills in one go →](https://thecraftagents.com/s/gWCFqwhObFWaNJIEJmd6j)
-
-**How do I create a new skill?**
-Describe what the skill should do, give it context. The agent takes care of the rest.
-
-**Do I need to restart after changes?**
-No. Everything is instant. Mention new skills or sources with `@`, even mid-conversation.
-
-**So I can just ask it anything?**
-Yes. That's the core idea behind agent-native software. You describe what you want, and it figures out how. That's a good use of tokens.
-
-
-## Installation
-
-### One-Line Install (Recommended)
-
-**macOS / Linux:**
-```bash
-curl -fsSL https://thecraftagents.com/install-app.sh | bash
+```sh
+'/Applications/Craft Agents.app/Contents/Resources/app/vendor/bun/bun' \
+  '/Applications/Craft Agents.app/Contents/Resources/app/dist/resources/visual-review/open-review.cjs' \
+  '/absolute/path/to/project/review' \
+  '/absolute/path/to/image.png' \
+  '/absolute/path/to/page.html'
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://thecraftagents.com/install-app.ps1 | iex
+命令返回各文件的 `links`，可在 Craft 内置浏览器打开。应用重启后重新运行命令获取链接。希望 Agent 默认提供入口时，可将此约定加入自己的工作区 AGENTS.md。
+
+HTML 当前支持自包含静态文件：内联样式和 data 图片可用，业务脚本、外部网络资源不执行。页面预览视口为 900×680。完整使用和数据格式见 [工作台说明](extensions/visual-review/README.md) 与 [内置入口指南](extensions/visual-review/BUNDLED-GUIDE.md)。
+
+### 个人发行版维护
+
+- 标准 Pi 1.4.0 提供模型运行路径，保留已验证的数据源、MCP、任务和工作流能力。
+- 文件链接兼容中文、空格、iCloud 路径和行号；普通文件可在 Finder 定位。
+- Pele 图表渲染及展开批注修复。
+- 官方自动更新关闭；采用明确版本、组件锁和手工升级，避免覆盖社区改动。
+
+生图模型与外部技能按用户自己的连接配置使用。个人工作区的自定义 Codex 生图技能及 API 凭据不包含在本应用包中。
+
+## 构建与版本管理
+
+- `main`：当前社区版主程序、工作台、构建和维护记录。
+- `engine`：历史版本使用的独立 Antigravity 引擎来源；当前 1.4.0 应用不包含该引擎。
+- `extensions/visual-review/`：版本化工作台源码及独立依赖锁。
+- `personal-release.json`：正式版组件锁、验收记录及模块版本。
+- Release：代码安装包、完整应用文件清单、SHA256 和验证摘要。大文件不存入 Git/LFS。
+
+本项目选择性维护固定基线，不直接合并官方整包升级。重建需取得已校验的基础应用，并遵循 [维护手册](docs/personal/MAINTENANCE.md)；不要使用通用 `electron:build` 重建被冻结组件。
+
+工作台开发者可单独安装其锁定依赖并运行测试：
+
+```sh
+npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional
+node extensions/visual-review/build.mjs
+node --test extensions/visual-review/tests/host.test.mjs
 ```
 
-### Build from Source
+根仓库依赖使用 Bun 1.3.9，主构建 esbuild 0.25.12。[本次集成与验收](docs/personal/VISUAL-REVIEW-REVIEW.md)
 
-```bash
-git clone https://github.com/lukilabs/craft-agents-oss.git
-cd craft-agents-oss
-bun install
-bun run electron:start
-```
+## 历史、隐私与许可证
 
-## Features
+本仓库于 2026-11-11 从私有维护转为公开分享。公开前检查了个人改动历史、历史发布元数据及当前发行包；旧 Release 中的“保持私有”字段记录当时的维护策略，后续以本次公开决定为准，历史文件保持原样。[公开审查说明](docs/personal/PUBLICATION-REVIEW.md)
 
-- **Multi-Session Inbox**: Desktop app with session management, status workflow, and flagging
-- **Claude Code Experience**: Streaming responses, tool visualization, real-time updates
-- **Multiple LLM Connections**: Add multiple AI providers and set per-workspace defaults
-- **Multi-Provider Support**: Run sessions with Google AI Studio, ChatGPT Plus, GitHub Copilot, or OpenAI API keys alongside Anthropic
-- **Craft MCP Integration**: Access to 32+ Craft document tools (blocks, collections, search, tasks)
-- **Sources**: Connect to MCP servers, REST APIs (Google, Slack, Microsoft), and local filesystems
-- **Permission Modes**: Three-level system (Explore, Ask to Edit, Auto) with customizable rules
-- **Background Tasks**: Run long-running operations with progress tracking
-- **Dynamic Status System**: Customizable session workflow states (Todo, In Progress, Done, etc.)
-- **Theme System**: Cascading themes at app and workspace levels
-- **Multi-File Diff**: VS Code-style window for viewing all file changes in a turn
-- **Skills**: Specialized agent instructions stored per-workspace
-- **File Attachments**: Drag-drop images, PDFs, Office documents with auto-conversion
-- **Automations**: Event-driven automation — create agent sessions on label changes, schedules, tool use, and more
+请勿提交真实配置、凭据、对话、附件或工作区资料。仓库公开不等于授权公开维护者的其他仓库。GitHub Actions 与官方自动更新仍保持关闭。
 
-## Quick Start
-
-1. **Launch the app** after installation
-2. **Choose API Connection**: Use Anthropic (API key or Claude Max), Google AI Studio, ChatGPT Plus (Codex OAuth), or GitHub Copilot OAuth
-3. **Create a workspace**: Set up a workspace to organize your sessions
-4. **Connect sources** (optional): Add MCP servers, REST APIs, or local filesystems
-5. **Start chatting**: Create sessions and interact with Claude
-
-## Desktop App Features
-
-### Session Management
-
-- **Inbox/Archive**: Sessions organized by workflow status
-- **Flagging**: Mark important sessions for quick access
-- **Status Workflow**: Todo → In Progress → Needs Review → Done
-- **Session Naming**: AI-generated titles or manual naming
-- **Session Persistence**: Full conversation history saved to disk
-
-### Sources
-
-Connect external data sources to your workspace:
-
-| Type | Examples |
-|------|----------|
-| **MCP Servers** | Craft, Linear, GitHub, Notion, custom servers |
-| **REST APIs** | Google (Gmail, Calendar, Drive, YouTube, Search Console), Slack, Microsoft |
-| **Local Files** | Filesystem, Obsidian vaults, Git repos |
-
-### Permission Modes
-
-| Mode | Display | Behavior |
-|------|---------|----------|
-| `safe` | Explore | Read-only, blocks all write operations |
-| `ask` | Ask to Edit | Prompts for approval (default) |
-| `allow-all` | Auto | Auto-approves all commands |
-
-Use **SHIFT+TAB** to cycle through modes in the chat interface.
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+N` | New chat |
-| `Cmd+1/2/3` | Focus sidebar/list/chat |
-| `Cmd+/` | Keyboard shortcuts dialog |
-| `SHIFT+TAB` | Cycle permission modes |
-| `Enter` | Send message |
-| `Shift+Enter` | New line |
-
-## Remote Server (Headless)
-
-Craft Agents can run as a headless server on a remote machine (e.g., a Linux VPS), with the desktop app connecting as a thin client. This lets you keep long-running sessions alive, access them from multiple machines, and run compute-heavy tasks on a powerful server.
-
-### Quick Start
-
-From the monorepo root:
-
-```bash
-# Generate a token and start the server
-CRAFT_SERVER_TOKEN=$(openssl rand -hex 32) bun run packages/server/src/index.ts
-```
-
-The server prints the connection details on startup:
-
-```
-CRAFT_SERVER_URL=ws://203.0.113.5:9100
-CRAFT_SERVER_TOKEN=<generated-token>
-```
-
-Copy these values and use them to connect the desktop app.
-
-### Connecting the Desktop App
-
-Launch the Electron app in thin-client mode by passing the server URL and token:
-
-```bash
-CRAFT_SERVER_URL=wss://203.0.113.5:9100 CRAFT_SERVER_TOKEN=<token> bun run electron:start
-```
-
-In thin-client mode, the desktop app renders the UI but all session logic, tool execution, and LLM calls run on the remote server.
-
-### Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `CRAFT_SERVER_TOKEN` | Yes | — | Bearer token for client authentication |
-| `CRAFT_RPC_HOST` | No | `127.0.0.1` | Bind address (`0.0.0.0` for remote access) |
-| `CRAFT_RPC_PORT` | No | `9100` | Bind port |
-| `CRAFT_RPC_TLS_CERT` | No | — | Path to PEM certificate file (enables `wss://`) |
-| `CRAFT_RPC_TLS_KEY` | No | — | Path to PEM private key file (required with cert) |
-| `CRAFT_RPC_TLS_CA` | No | — | Path to PEM CA chain file (optional, for client cert verification) |
-| `CRAFT_DEBUG` | No | `false` | Enable debug logging |
-
-### TLS (Recommended for Remote Access)
-
-When exposing the server over the network, TLS encrypts the WebSocket connection (`wss://` instead of `ws://`).
-
-**Generate a self-signed certificate (development/testing):**
-
-```bash
-./scripts/generate-dev-cert.sh
-# Creates certs/cert.pem and certs/key.pem (valid 365 days)
-```
-
-**Start the server with TLS:**
-
-```bash
-CRAFT_SERVER_TOKEN=<token> \
-CRAFT_RPC_HOST=0.0.0.0 \
-CRAFT_RPC_TLS_CERT=certs/cert.pem \
-CRAFT_RPC_TLS_KEY=certs/key.pem \
-bun run packages/server/src/index.ts
-```
-
-The server will print `CRAFT_SERVER_URL=wss://<your-public-ip>:9100`.
-
-**For production**, use certificates from a trusted CA (e.g., Let's Encrypt) or place the server behind a reverse proxy (nginx, Caddy) that terminates TLS.
-
-### Docker
-
-```bash
-docker run -d \
-  -p 9100:9100 \
-  -e CRAFT_SERVER_TOKEN=<token> \
-  -e CRAFT_RPC_HOST=0.0.0.0 \
-  -v craft-data:/root/.craft-agent \
-  craft-agents-server
-```
-
-To enable TLS in Docker, mount your certificates and set the env vars:
-
-```bash
-docker run -d \
-  -p 9100:9100 \
-  -e CRAFT_SERVER_TOKEN=<token> \
-  -e CRAFT_RPC_HOST=0.0.0.0 \
-  -e CRAFT_RPC_TLS_CERT=/certs/cert.pem \
-  -e CRAFT_RPC_TLS_KEY=/certs/key.pem \
-  -v ./certs:/certs:ro \
-  -v craft-data:/root/.craft-agent \
-  craft-agents-server
-```
-
-## CLI Client
-
-A terminal client that connects to a running Craft Agent server over WebSocket (`ws://` or `wss://`). Use it for scripting, CI/CD pipelines, server validation, or when you prefer the command line.
-
-### Installation
-
-```bash
-# From the monorepo (requires Bun)
-bun run apps/cli/src/index.ts --help
-
-# Or add to your PATH
-alias craft-cli="bun run $(pwd)/apps/cli/src/index.ts"
-```
-
-### Connection
-
-The CLI reads connection details from flags or environment variables:
-
-```bash
-# Via environment (set once)
-export CRAFT_SERVER_URL=ws://127.0.0.1:9100
-export CRAFT_SERVER_TOKEN=<your-token>
-
-# Or via flags
-craft-cli --url ws://127.0.0.1:9100 --token <token> ping
-```
-
-For TLS connections (`wss://`), use `--tls-ca <path>` for self-signed certificates.
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `ping` | Verify connectivity (clientId + latency) |
-| `health` | Check credential store health |
-| `versions` | Show server runtime versions |
-| `workspaces` | List workspaces |
-| `sessions` | List sessions in workspace |
-| `connections` | List LLM connections |
-| `sources` | List configured sources |
-| `session create` | Create a session (`--name`, `--mode`) |
-| `session messages <id>` | Print session message history |
-| `session delete <id>` | Delete a session |
-| `send <id> <message>` | Send message and stream AI response |
-| `cancel <id>` | Cancel in-progress processing |
-| `invoke <channel> [args]` | Raw RPC call with JSON args |
-| `listen <channel>` | Subscribe to push events (Ctrl+C to stop) |
-| `run <prompt>` | Self-contained: spawn server, run prompt, stream response, exit |
-| `--validate-server` | 21-step integration test (auto-spawns server if no `--url`) |
-
-#### Run Command Flags
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--workspace-dir <path>` | — | Register a workspace directory before running |
-| `--source <slug>` | — | Enable a source (repeatable) |
-| `--output-format <fmt>` | `text` | Output format: `text` or `stream-json` |
-| `--mode <mode>` | `allow-all` | Permission mode for the session |
-| `--no-cleanup` | `false` | Skip session deletion on exit |
-| `--server-entry <path>` | — | Custom server entry point |
-| `--provider <name>` | `anthropic` | LLM provider (`anthropic`, `openai`, `google`, `openrouter`, `groq`, `mistral`, `xai`, etc.) |
-| `--model <id>` | (provider default) | Model ID (e.g., `claude-sonnet-4-5-20250929`, `gpt-4o`, `gemini-2.0-flash`) |
-| `--api-key <key>` | — | API key (or `$LLM_API_KEY`, or provider-specific env var) |
-| `--base-url <url>` | — | Custom API endpoint for proxies or self-hosted models |
-
-The `run` command is fully self-contained — it spawns a headless server, creates a session, sends the prompt, streams the response, and exits. No separate server setup needed. An API key is resolved from `--api-key`, `$LLM_API_KEY`, or a provider-specific env var (e.g., `$ANTHROPIC_API_KEY`, `$OPENAI_API_KEY`).
-
-### Examples
-
-```bash
-# Quick connectivity check
-craft-cli ping
-
-# List sessions (human-readable)
-craft-cli sessions
-
-# Send a message and stream the AI response
-craft-cli send abc-123 "What files are in the current directory?"
-
-# Pipe input
-echo "Summarize this" | craft-cli send abc-123
-
-# JSON output for scripting
-craft-cli --json workspaces | jq '.[].name'
-
-# Self-contained run (spawns its own server)
-craft-cli run "Summarize the README"
-craft-cli run --workspace-dir ./my-project --source github "List open PRs"
-
-# Multi-provider support
-craft-cli run --provider openai --model gpt-4o "Summarize this repo"
-GOOGLE_API_KEY=... craft-cli run --provider google --model gemini-2.0-flash "Hello"
-craft-cli run --provider anthropic --base-url https://openrouter.ai/api/v1 --api-key $OR_KEY "Hello"
-
-# Validate the server (auto-spawns if no --url)
-craft-cli --validate-server
-craft-cli --validate-server --url ws://127.0.0.1:9100 --token <token>
-```
-
-## Architecture
-
-```
-craft-agent/
-├── apps/
-│   ├── cli/                   # Terminal client (CLI)
-│   └── electron/              # Desktop GUI (primary)
-│       └── src/
-│           ├── main/          # Electron main process
-│           ├── preload/       # Context bridge
-│           └── renderer/      # React UI (Vite + shadcn)
-└── packages/
-    ├── core/                  # Shared types
-    └── shared/                # Business logic
-        └── src/
-            ├── agent/         # CraftAgent, permissions
-            ├── auth/          # OAuth, tokens
-            ├── config/        # Storage, preferences, themes
-            ├── credentials/   # AES-256-GCM encrypted storage
-            ├── sessions/      # Session persistence
-            ├── sources/       # MCP, API, local sources
-            └── statuses/      # Dynamic status system
-```
-
-## Development
-
-```bash
-# Hot reload development
-bun run electron:dev
-
-# Build and run
-bun run electron:start
-
-# Type checking
-bun run typecheck:all
-
-# Debug logging (writes to ~/Library/Logs/@craft-agent/electron/)
-# Logs are automatically enabled in development
-```
-
-### Environment Variables
-
-OAuth integrations (Slack, Microsoft) require credentials baked into the build. Create a `.env` file:
-
-```bash
-MICROSOFT_OAUTH_CLIENT_ID=your-client-id
-SLACK_OAUTH_CLIENT_ID=your-slack-client-id
-SLACK_OAUTH_CLIENT_SECRET=your-slack-client-secret
-```
-
-**Note:** Google OAuth credentials are NOT baked into the build. Users provide their own credentials via source configuration. See the [Google OAuth Setup](#google-oauth-setup-gmail-calendar-drive) section below.
-
-### Google OAuth Setup (Gmail, Calendar, Drive, YouTube, Search Console)
-
-Google integrations require you to create your own OAuth credentials. This is a one-time setup.
-
-#### 1. Create a Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project (or select an existing one)
-3. Note your Project ID
-
-#### 2. Enable Required APIs
-
-Go to **APIs & Services → Library** and enable the APIs you need:
-- **Gmail API** - for email integration
-- **Google Calendar API** - for calendar integration
-- **Google Drive API** - for file storage integration
-
-#### 3. Configure OAuth Consent Screen
-
-1. Go to **APIs & Services → OAuth consent screen**
-2. Select **External** user type (unless you have Google Workspace)
-3. Fill in required fields:
-   - App name: e.g., "My Craft Agent"
-   - User support email: your email
-   - Developer contact: your email
-4. Add scopes (optional - can leave default)
-5. Add yourself as a test user (required for External apps in testing mode)
-6. Complete the wizard
-
-#### 4. Create OAuth Credentials
-
-1. Go to **APIs & Services → Credentials**
-2. Click **Create Credentials → OAuth Client ID**
-3. Application type: **Web application** (not "Desktop app" — Craft Agent routes every OAuth flow through a hosted callback, which a Desktop-app client rejects with `redirect_uri_mismatch`)
-4. Name: e.g., "Craft Agent"
-5. Under **Authorized redirect URIs**, add: `https://thecraftagents.com/auth/callback`
-6. Click **Create**
-7. Note the **Client ID** and **Client Secret**
-
-#### 5. Configure in Craft Agent
-
-When setting up a Google source (Gmail, Calendar, Drive, YouTube, Search Console, etc.), add these fields to your source's `config.json`:
-
-```json
-{
-  "api": {
-    "googleService": "gmail",
-    "googleOAuthClientId": "your-client-id.apps.googleusercontent.com",
-    "googleOAuthClientSecret": "your-client-secret"
-  }
-}
-```
-
-Or simply tell the agent you want to connect Gmail/Calendar/Drive - it will guide you through entering your credentials.
-
-#### Security Notes
-
-- Your OAuth credentials are stored encrypted alongside other source credentials
-- Never commit credentials to version control
-- For production use, consider getting your OAuth consent screen verified by Google
-
-## Supported LLM Providers
-
-Craft Agents supports multiple ways to connect to LLM providers:
-
-### Direct Connections
-
-| Provider | Auth | Notes |
-|----------|------|-------|
-| **Anthropic** | API key or Claude Max/Pro OAuth | Direct Claude connection via the Claude Agent SDK |
-| **Google AI Studio** | API key | Gemini models with native Google Search grounding built in |
-| **ChatGPT Plus / Pro** | Codex OAuth | Sign in with your ChatGPT subscription — uses OpenAI's Codex models |
-| **GitHub Copilot** | OAuth (device code) | One-click authentication with your Copilot subscription |
-
-### Third-Party & Self-Hosted Providers
-
-Additional providers are supported through the **Claude / Anthropic API Key** connection by choosing a custom endpoint:
-
-| Provider | Endpoint | Notes |
-|----------|----------|-------|
-| **OpenRouter** | `https://openrouter.ai/api` | Access Claude, GPT, Llama, Gemini, and hundreds of other models through a single API key. Use `provider/model-name` format (e.g. `anthropic/claude-opus-4.7`). |
-| **Vercel AI Gateway** | `https://ai-gateway.vercel.sh` | Route requests through Vercel's AI Gateway with built-in observability and caching. |
-| **Ollama** | `http://localhost:11434` | Run open-source models locally. No API key required. |
-| **Custom** | Any URL | Any OpenAI-compatible or Anthropic-compatible endpoint. |
-
-### Architecture
-
-Craft Agents uses two agent backends:
-
-- **Claude** — powered by the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk), which natively supports custom base URLs and provider routing. Anthropic API key, Claude Max/Pro OAuth, and all third-party endpoints use this backend.
-- **Pi** — powered by the Pi SDK, which handles Google AI Studio, ChatGPT Plus (Codex OAuth), GitHub Copilot OAuth, and OpenAI API key connections. Pi connections route through their own provider infrastructure.
-
-## Configuration
-
-Configuration is stored at `~/.craft-agent/`:
-
-```
-~/.craft-agent/
-├── config.json              # Main config (workspaces, LLM connections)
-├── credentials.enc          # Encrypted credentials (AES-256-GCM)
-├── preferences.json         # User preferences
-├── theme.json               # App-level theme
-└── workspaces/
-    └── {id}/
-        ├── config.json      # Workspace settings
-        ├── theme.json       # Workspace theme override
-        ├── automations.json  # Event-driven automations
-        ├── sessions/        # Session data (JSONL)
-        ├── sources/         # Connected sources
-        ├── skills/          # Custom skills
-        └── statuses/        # Status configuration
-```
-
-### Automations
-
-Automations let you automate workflows by triggering actions when events happen — labels change, sessions start, tools run, or on a cron schedule.
-
-**Just ask the agent:**
-- "Set up a daily standup briefing every weekday at 9am"
-- "Notify me when a session is labelled urgent"
-- "Track permission mode changes and summarise them"
-- "Every Friday at 5pm, summarise this week's completed tasks"
-
-Or configure manually in `~/.craft-agent/workspaces/{id}/automations.json`:
-
-```json
-{
-  "version": 2,
-  "automations": {
-    "SchedulerTick": [
-      {
-        "cron": "0 9 * * 1-5",
-        "timezone": "America/New_York",
-        "labels": ["Scheduled"],
-        "actions": [
-          { "type": "prompt", "prompt": "Check @github for new issues assigned to me" }
-        ]
-      }
-    ],
-    "LabelAdd": [
-      {
-        "matcher": "^urgent$",
-        "actions": [
-          { "type": "prompt", "prompt": "An urgent label was added. Triage the session and summarise what needs attention." }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Prompt actions** create a new agent session with a prompt. They support `@mentions` for sources and skills, and environment variables like `$CRAFT_LABEL` and `$CRAFT_SESSION_ID` are expanded automatically.
-
-**Supported events:** `LabelAdd`, `LabelRemove`, `PermissionModeChange`, `FlagChange`, `SessionStatusChange`, `SchedulerTick`, `PreToolUse`, `PostToolUse`, `SessionStart`, `SessionEnd`, and more.
-
-See the [Automations documentation](https://thecraftagents.com/docs/automations/overview) for the full reference.
-
-## Advanced Features
-
-### Large Response Handling
-
-Tool responses exceeding ~60KB are automatically summarized using Claude Haiku with intent-aware context. The `_intent` field is injected into MCP tool schemas to preserve summarization focus.
-
-### Deep Linking
-
-External apps can navigate using `craftagents://` URLs:
-
-```
-craftagents://allSessions                      # All sessions view
-craftagents://allSessions/session/session123   # Specific session
-craftagents://settings                         # Settings
-craftagents://sources/source/github            # Source info
-craftagents://action/new-chat                  # Create new session
-```
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Runtime | [Bun](https://bun.sh/) |
-| AI | [@anthropic-ai/claude-agent-sdk](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) |
-| AI (Pi) | Pi SDK agent server |
-| Desktop | [Electron](https://www.electronjs.org/) + React |
-| UI | [shadcn/ui](https://ui.shadcn.com/) + Tailwind CSS v4 |
-| Build | esbuild (main) + Vite (renderer) |
-| Credentials | AES-256-GCM encrypted file storage |
-
-## Troubleshooting
-
-### Debug Mode
-
-To launch the packaged app with verbose logging enabled, use `-- --debug` (note the double dash separator):
-
-**macOS:**
-```bash
-/Applications/Craft\ Agents.app/Contents/MacOS/Craft\ Agents -- --debug
-```
-
-**Windows (PowerShell):**
-```powershell
-& "$env:LOCALAPPDATA\Programs\@craft-agentelectron\Craft Agents.exe" -- --debug
-```
-
-**Linux:**
-```bash
-./craft-agents -- --debug
-```
-
-Logs are written to:
-- **macOS:** `~/Library/Logs/@craft-agent/electron/main.log`
-- **Windows:** `%APPDATA%\@craft-agent\electron\logs\main.log`
-- **Linux:** `~/.config/@craft-agent/electron/logs/main.log`
-
-## License
-
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-### Third-Party Licenses
-
-This project uses the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk), which is subject to [Anthropic's Commercial Terms of Service](https://www.anthropic.com/legal/commercial-terms).
-
-### Trademark
-
-"Craft" and "Craft Agents" are trademarks of Craft Docs Ltd. See [TRADEMARK.md](TRADEMARK.md) for usage guidelines.
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Security
-
-### Local MCP Server Isolation
-
-When spawning local MCP servers (stdio transport), sensitive environment variables are filtered out to prevent credential leakage to subprocesses. Blocked variables include:
-
-- `ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN` (app auth)
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`
-- `GITHUB_TOKEN`, `GH_TOKEN`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `STRIPE_SECRET_KEY`, `NPM_TOKEN`
-
-To explicitly pass an env var to a specific MCP server, use the `env` field in the source config.
-
-To report security vulnerabilities, please see [SECURITY.md](SECURITY.md).
+上游与本仓库代码按 [Apache License 2.0](LICENSE) 分发，请保留 [NOTICE](NOTICE) 及第三方许可。工作台使用 Fabric.js（MIT）与 pngjs（MIT），安装包附带相应声明；商标说明见 [TRADEMARK.md](TRADEMARK.md)。

@@ -2,7 +2,7 @@
 
 ## 唯一事实源
 
-- 私有仓库：https://github.com/xunhuang071-source/craft-agents-personal
+- 公开仓库：https://github.com/xunhuang071-source/craft-agents-personal（2026-11-11 经用户批准公开；其他私有仓库不在授权范围内）
 - main：主程序、维护规则、组件锁定与版本日志。
 - engine：独立 Antigravity Pi 适配器；由 main/personal-release.json 锁定准确提交。
 - Release：正式程序 ZIP、SHA256SUMS、release-manifest.json、文件清单与安全审查报告。
@@ -10,11 +10,11 @@
 
 ## 现有本机工作区
 
-本次主程序在 ~/.craft-agent/development/craft-antigravity-native，引擎在相邻 craft-antigravity-native-engine。二者是 ~/WorkBuddy/craft-agents-oss 的 linked worktree，不是独立克隆。不要改共享 remote 或重置旧 worktree；当前发布只通过明确的私有仓库 URL 推送指定 refs。
+本次主程序在 ~/.craft-agent/development/craft-antigravity-native，引擎在相邻 craft-antigravity-native-engine。二者是 ~/WorkBuddy/craft-agents-oss 的 linked worktree，不是独立克隆。不要改共享 remote 或重置旧 worktree；当前发布只通过明确的本仓库 URL 推送指定 refs。
 
-已有源树和 dependencies 可继续使用，不必复制一份来“备份”。以后新电脑可按下节正常克隆私人仓库。
+已有源树和 dependencies 可继续使用，不必复制一份来“备份”。以后新电脑可按下节正常克隆公开仓库。
 
-## 从私有仓库重新准备
+## 从公开仓库重新准备
 
 ```sh
 gh repo clone xunhuang071-source/craft-agents-personal
@@ -28,11 +28,14 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 ## 最小构建
 
-wallee-v1.3.0 单 Pi 版本使用以下入口。输入为按历史组件锁校验的 wallee-v1.2.0 基础应用。脚本定向编译主进程，校验标准 Pi 和冻结资源，并生成签名候选。
+当前 wallee-v1.4.0 以已验收应用作为冻结基线，定向编译主进程并打包工作台。未来获批改动使用新的候选号和输出目录：
 
 ```sh
-node scripts/personal-build-pi-only.mjs '/path/to/wallee-v1.2.0/Craft Agents.app' "$PWD/native-artifacts/new-pi-only-candidate"
+npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional
+node scripts/personal-build-visual-review.mjs '/path/to/verified-wallee-v1.4.0/Craft Agents.app' "$PWD/native-artifacts/new-review-candidate" 'wallee-v1.5.0-rc.1'
 ```
+
+第三个参数必须是新的候选号，示例不代表已批准 1.5.0 的功能或发布。历史版本可在对应不可变标签下复现原有构建脚本。
 
 下列旧构建命令用于需要独立 Antigravity 引擎的历史版本。
 
@@ -73,13 +76,13 @@ bash scripts/build-native-antigravity-release.sh
 5. 编译到开发目录，记录期望输出；组装候选，核对冻结资源与签名。
 6. 提交 main，创建新不可变标签，发布清单固定 main/engine 提交、工具版本、安装包与文件哈希。使用 GitHub 隐私邮箱和 Craft Agent co-author。
 7. 本地扫描暂存源码和最终 app。误报须逐项说明并绑定文件哈希；不得用整个 tests/bundles 路径豁免真实密钥检查。
-8. 确认仓库仍为 private、Actions 仍禁用，且用户批准该次发布，再仅推送必要分支/标签，上传私有 Release。禁止 push --all、mirror、force。
+8. 确认目标仍为本仓库、Actions 仍禁用，且用户批准该次发布，再仅推送必要分支/标签并上传代码 Release。当前仓库已获准公开；不得据此公开其他仓库或用户资料。禁止 push --all、mirror、force。
 9. 用户自行退出应用、拖入覆盖、打开验收。程序回退只换代码；涉及数据格式迁移时先单独报批。
 10. 远端包确认完整后清理重复安装包、临时编译与测试产物；不清理真实账户/对话、唯一源码或其他日期的历史资料。
 
-## 内置批注工作台候选（2026-11-11）
+## 内置批注工作台（2026-11-11，已正式发布为 1.4.0）
 
-用户批准随个人版一起打包，候选为 wallee-v1.4.0-rc.1。采用 `scripts/personal-build-visual-review.mjs BASE_APP NEW_OUTPUT_DIR`，输入为已校验 wallee-v1.3.0 应用。只重建主进程并新增版本化工作台资源及指南，不运行通用 Electron 构建。先按 `extensions/visual-review/package-lock.json` 安装模块依赖，再执行构建与隔离测试；使用 `personal-audit-candidate.py --scope visual-review` 核对全文件变化。源码与方法见 [VISUAL-REVIEW-REVIEW.md](VISUAL-REVIEW-REVIEW.md)。候选不得自动覆盖正在使用的程序；安装和正式发布仍由用户决定。
+用户批准随个人版一起打包，并手动安装验收 wallee-v1.4.0-rc.1，随后批准晋升 wallee-v1.4.0 和公开分享。正式晋升不重新构建、签名或安装程序。后续开发使用本次正式基线。原候选采用 `scripts/personal-build-visual-review.mjs BASE_APP NEW_OUTPUT_DIR NEW_CANDIDATE_VERSION`，输入为已校验 wallee-v1.3.0 应用。只重建主进程并新增版本化工作台资源及指南，不运行通用 Electron 构建。先按 `extensions/visual-review/package-lock.json` 安装模块依赖，再执行构建与隔离测试；使用 `personal-audit-candidate.py --scope visual-review` 核对全文件变化。源码与方法见 [VISUAL-REVIEW-REVIEW.md](VISUAL-REVIEW-REVIEW.md)。候选不得自动覆盖正在使用的程序；安装和正式发布仍由用户决定。
 
 ## 上游与技能
 

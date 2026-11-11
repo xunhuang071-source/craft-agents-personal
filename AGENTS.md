@@ -18,11 +18,11 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 
 ## Version and release
 
-- The private repository is https://github.com/xunhuang071-source/craft-agents-personal. Host source is on main; managed engine source is separately pinned on engine.
+- The repository is https://github.com/xunhuang071-source/craft-agents-personal. On 2026-11-11 the user explicitly approved making this repository and its existing release history public, and publishing the accepted workbench build as wallee-v1.4.0. This does not authorize publishing other private repositories, workspaces, skills or user data. Host source is on main; historical managed engine source remains pinned on engine.
 - Commit source and lockfiles before publishing. Runtime bundle-only patches are not a complete deliverable: mirror changes in source and record any frozen resources.
 - Build from repository roots using the script specified by the current release lock. Do not run the generic full Electron build; it rebuilds frozen UI/preloads/old Pi.
 - Follow the manual release checklist in docs/personal/MAINTENANCE.md. Never enable imported Actions workflows or official auto-updates without separate approval.
-- Keep release archives in private GitHub Releases, not Git/LFS. Exclude node_modules, generated binaries, profiles and logs from Git.
+- Keep code-only release archives in this repository's GitHub Releases, not Git/LFS. Exclude node_modules, generated binaries, profiles and logs from Git.
 - Include `Co-Authored-By: Craft Agent <agents-noreply@craft.do>` on agent-created commits; use GitHub's private noreply identity, not a local hostname.
 
 ## Privacy and rollback
@@ -35,4 +35,4 @@ Read PERSONAL.md, personal-release.json, docs/personal/MAINTENANCE.md and docs/p
 
 ## Existing local worktrees
 
-The current host and engine directories are linked worktrees sharing the WorkBuddy Git database. Do not reset other worktrees, edit shared remotes or global Git identity, push --all, or force-push. Push only explicit approved refs to the private repository URL. Keep unrelated staged/unstaged files untouched.
+The current host and engine directories are linked worktrees sharing the WorkBuddy Git database. Do not reset other worktrees, edit shared remotes or global Git identity, push --all, or force-push. Push only explicit approved refs to this repository URL. Keep unrelated staged/unstaged files untouched.

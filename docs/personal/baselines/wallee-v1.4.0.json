@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "version": "wallee-v1.4.0",
+  "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
+  "platform": "darwin-arm64",
+  "applicationId": "com.lukilabs.craft-agent",
+  "upstream": {
+    "host": "v0.14.1",
+    "piSdk": "1.4.0"
+  },
+  "build": {
+    "bun": "1.3.9",
+    "esbuild": "0.25.12",
+    "oauthDefines": "empty; user credentials are never build inputs"
+  },
+  "expectedBuild": {
+    "mainSha256": "692701a3ccba36de1a1c654690b7f66fc6a33391c65637db1209a80318755204",
+    "standardPiSha256": "90bff5453e4c18bacf84d63b5d489aa054b53d218af18c6257562c77174d54cb"
+  },
+  "frozen": {
+    "rendererTreeSha256": "794d4881cb7e73ead33ab215ffde4ecc8c1fa8b6d6a830fc15aec5eb025fb372",
+    "infoPlistSha256": "23f4b5895fbad9212625548867e7b120557536d2e56b24fe96a9ad65419b2dc1",
+    "files": {
+      "Contents/Resources/app/dist/bootstrap-preload.cjs": "146938120e9b481540b4eee7c023fe26a743261fae59000fa19aba4a9d8af5e1",
+      "Contents/Resources/app/dist/browser-toolbar-preload.cjs": "5778078b69762ac5edd8af94a820088c1ecfe02b4e26ace134ae6ea3d7a84049",
+      "Contents/Resources/app/dist/interceptor.cjs": "35af764281e6f3afb191ef03ae80e30e07f6644ff920ae289b2608a91bfe95ae",
+      "Contents/Resources/app/dist/resources/docs/sources.md": "8e23cc51857277f2a53d8062f43ba97417c9832633327ed69db5669752880b46"
+    }
+  },
+  "frozenBaseAsset": {
+    "repository": "xunhuang071-source/craft-agents-personal",
+    "tag": "wallee-v1.4.0",
+    "asset": "Craft-Agents-wallee-v1.4.0-mac-arm64.zip",
+    "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
+  },
+  "officialAutomaticUpdates": false,
+  "userProfileIncluded": false,
+  "rendererUpdate": {
+    "renderer": "pele@1.12.0",
+    "interactions": "one app-owned zoom/selection/annotation layer",
+    "baselineLock": "docs/personal/baselines/wallee-v1.0.0.json",
+    "scope": "Mermaid renderer, editor type detection, annotation overlay, host validation handler",
+    "retainedPiStaticCode": "Frozen Pi bundles retain upstream static validator code, but registered session tools proxy to the host Pele handler; both paths are integration-tested.",
+    "installedAutomatically": false,
+    "baselineAsset": {
+      "repository": "xunhuang071-source/craft-agents-personal",
+      "tag": "wallee-v1.0.0",
+      "asset": "Craft-Agents-wallee-v1.0.0-mac-arm64.zip",
+      "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
+    }
+  },
+  "previousAcceptance": {
+    "version": "wallee-v1.3.0",
+    "candidateVersion": "wallee-v1.3.0-rc.1",
+    "date": "2026-11-11",
+    "installedByUser": true,
+    "manualConversationCheck": "passed",
+    "installedInventoryMatchesCandidate": true,
+    "codeChangedAfterAcceptance": false,
+    "publicationAuthorizedByUser": true
+  },
+  "acceptance": {
+    "version": "wallee-v1.4.0",
+    "candidateVersion": "wallee-v1.4.0-rc.1",
+    "date": "2026-11-11",
+    "installedByUser": true,
+    "manualReviewWorkbenchCheck": "accepted",
+    "installedInventoryMatchesCandidate": true,
+    "codeChangedAfterAcceptance": false,
+    "publicationAuthorizedByUser": true
+  },
+  "piSdkUpgrade": {
+    "version": "1.4.0",
+    "baselineLock": "docs/personal/baselines/wallee-v1.1.0.json",
+    "baselineHostCommit": "5968bfa0",
+    "baselineEngineCommit": "cc919345430ae3846862470755b6daf202c48ae5",
+    "scope": "host Pi SDK bridge and two Pi bundles only; renderer/preloads/interceptor remain frozen",
+    "standardAdapterSource": "v0.15.1 / 2e3ba53f plus the installed 2026-10-25 workspace instruction isolation patch, now source-owned",
+    "installedAutomatically": false,
+    "releasedIn": "wallee-v1.2.0"
+  },
+  "fileLinkUpdate": {
+    "baselineLock": "docs/personal/baselines/wallee-v1.2.0-rc.1.json",
+    "scope": "Local file link recognition, Finder routing, directory/existence and line-reference handling",
+    "installedAutomatically": false,
+    "releasedIn": "wallee-v1.2.0"
+  },
+  "piOnly": {
+    "baselineLock": "docs/personal/baselines/wallee-v1.2.0.json",
+    "implementationCommit": "2f8349d8661407f7e0f5afa81b6d784a199e2680",
+    "buildScript": "scripts/personal-build-pi-only.mjs",
+    "managedEngineIncluded": false
+  },
+  "visualReview": {
+    "version": "0.1.0",
+    "feedbackSchemaVersion": 2,
+    "moduleManifestSha256": "3005c569ba6ecfa107f5ffd39da7304ca3e058f3fa7688c06da2cff0ae9a86b8",
+    "buildScript": "scripts/personal-build-visual-review.mjs",
+    "compiledSourceCommit": "3cd546b467b7b43affb4a625b6fe72906bcba1c8",
+    "releasedIn": "wallee-v1.4.0"
+  },
+  "publication": {
+    "visibility": "public",
+    "authorizedByUser": "2026-11-11",
+    "scope": "this repository, its release history and code-only distribution artifacts",
+    "officialActionsEnabled": false,
+    "userProfileIncluded": false
+  }
+}
