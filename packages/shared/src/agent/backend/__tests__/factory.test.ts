@@ -29,7 +29,6 @@ import {
 import type { BackendConfig } from '../types.ts';
 import type { Workspace, LlmConnection } from '../../../config/storage.ts';
 import type { SessionConfig as Session } from '../../../sessions/storage.ts';
-import { ClaudeAgent } from '../../claude-agent.ts';
 import { PiAgent } from '../../pi-agent.ts';
 import { isValidProviderAuthCombination } from '../../../config/llm-connections.ts';
 
@@ -68,29 +67,29 @@ function createTestConfig(overrides: Partial<BackendConfig> = {}): BackendConfig
 describe('detectProvider', () => {
   describe('Anthropic authentication types', () => {
     it('should return anthropic for api_key', () => {
-      expect(detectProvider('api_key')).toBe('anthropic');
+      expect(detectProvider('api_key')).toBe('pi');
     });
 
     it('should return anthropic for oauth_token', () => {
-      expect(detectProvider('oauth_token')).toBe('anthropic');
+      expect(detectProvider('oauth_token')).toBe('pi');
     });
   });
 
   describe('Unknown authentication types', () => {
     it('should default to anthropic for unknown types', () => {
-      expect(detectProvider('unknown')).toBe('anthropic');
-      expect(detectProvider('')).toBe('anthropic');
+      expect(detectProvider('unknown')).toBe('pi');
+      expect(detectProvider('')).toBe('pi');
     });
   });
 });
 
 describe('createBackend / createAgent', () => {
   describe('Anthropic provider', () => {
-    it('should create ClaudeAgent for anthropic provider', () => {
+    it('should create PiAgent for anthropic provider', () => {
       const config = createTestConfig({ provider: 'anthropic' });
       const agent = createBackend(config);
 
-      expect(agent).toBeInstanceOf(ClaudeAgent);
+      expect(agent).toBeInstanceOf(PiAgent);
     });
   });
 
@@ -119,18 +118,17 @@ describe('createBackend / createAgent', () => {
 });
 
 describe('getAvailableProviders', () => {
-  it('should return anthropic and pi', () => {
+  it('returns Pi as the only execution backend', () => {
     const providers = getAvailableProviders();
 
-    expect(providers).toContain('anthropic');
+    expect(providers).toEqual(['pi']);
     expect(providers).toContain('pi');
-    expect(providers).toHaveLength(2);
   });
 });
 
 describe('isProviderAvailable', () => {
-  it('should return true for anthropic', () => {
-    expect(isProviderAvailable('anthropic')).toBe(true);
+  it('does not advertise a separate Anthropic execution backend', () => {
+    expect(isProviderAvailable('anthropic')).toBe(false);
   });
 
   it('should return true for pi', () => {
@@ -144,7 +142,7 @@ describe('isProviderAvailable', () => {
 
 describe('connectionTypeToProvider', () => {
   it('should map anthropic type to anthropic provider', () => {
-    expect(connectionTypeToProvider('anthropic')).toBe('anthropic');
+    expect(connectionTypeToProvider('anthropic')).toBe('pi');
   });
 
   it('should map openai type to pi provider (legacy routing)', () => {
@@ -156,7 +154,7 @@ describe('connectionTypeToProvider', () => {
   });
 
   it('should default to anthropic for unknown types', () => {
-    expect(connectionTypeToProvider('unknown' as any)).toBe('anthropic');
+    expect(connectionTypeToProvider('unknown' as any)).toBe('pi');
   });
 });
 
@@ -176,8 +174,8 @@ describe('connectionAuthTypeToBackendAuthType (legacy)', () => {
 
 describe('providerTypeToAgentProvider', () => {
   describe('Anthropic SDK providers', () => {
-    it('should map anthropic to anthropic', () => {
-      expect(providerTypeToAgentProvider('anthropic')).toBe('anthropic');
+    it('routes Anthropic connections to Pi', () => {
+      expect(providerTypeToAgentProvider('anthropic')).toBe('pi');
     });
   });
 
@@ -353,7 +351,7 @@ describe('resolveModelForProvider', () => {
   });
 });
 
-describe('ClaudeAgent model switching', () => {
+describe('PiAgent model switching', () => {
   it('setModel updates getModel (regression: setModel used to write config.model but getModel reads _model)', () => {
     const agent = createBackend(createTestConfig({ provider: 'anthropic', model: 'claude-opus-4-7' }));
 

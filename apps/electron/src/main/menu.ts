@@ -6,7 +6,6 @@ import type { MenuItem } from '../shared/menu-schema'
 import type { WindowManager } from './window-manager'
 import type { EventSink } from '@craft-agent/server-core/transport'
 import { mainLog, isDebugMode } from './logger'
-import { getAntigravityMenuItems } from './antigravity-menu'
 
 type ClientResolver = (webContentsId: number) => string | undefined
 
@@ -129,7 +128,6 @@ export async function rebuildMenu(): Promise<void> {
       ]
     },
 
-    { label: 'Antigravity', submenu: getAntigravityMenuItems() },
 
     // Edit menu (from shared schema)
     {

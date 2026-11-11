@@ -57,8 +57,6 @@ export function buildRestartRequiredSignature(input: BackendRuntimeSignatureInpu
     slug: connection?.slug,
     providerType: connection?.providerType,
     piAuthProvider: connection?.piAuthProvider,
-    managedProvider: connection?.managedProvider,
-    managedCredentialVersion: connection?.managedCredentialVersion,
   }))
 }
 

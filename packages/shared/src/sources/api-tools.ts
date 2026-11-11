@@ -5,7 +5,9 @@
  * Each tool accepts { path, method, params } and auto-injects authentication.
  */
 
-import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { tool } from '../agent/tool.ts';
+import type { ApiServerConfig } from '../mcp/mcp-pool.ts';
 import { z } from 'zod';
 import type { ApiConfig } from './types.ts';
 import { debug } from '../utils/debug.ts';
@@ -360,14 +362,15 @@ export function createApiServer(
   credential: ApiCredentialSource,
   sessionPath?: string,
   summarize?: SummarizeCallback
-): ReturnType<typeof createSdkMcpServer> {
+): ApiServerConfig {
   debug(`[api-tools] Creating server for ${config.name}${sessionPath ? ` (session: ${sessionPath})` : ''}`);
 
   const apiTool = createApiTool(config, credential, sessionPath, summarize);
 
-  return createSdkMcpServer({
-    name: `api_${config.name}`,
-    version: '1.0.0',
-    tools: [apiTool],
-  });
+  const instance = new McpServer({ name: apiTool.name, version: '1.0.0' });
+  instance.registerTool(apiTool.name, {
+    description: apiTool.description,
+    inputSchema: apiTool.inputSchema,
+  }, apiTool.handler);
+  return { type: 'sdk', instance };
 }

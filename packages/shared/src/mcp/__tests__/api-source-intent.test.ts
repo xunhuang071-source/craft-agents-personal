@@ -5,23 +5,22 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ApiSourcePoolClient } from '../api-source-pool-client.ts';
 
 describe('ApiSourcePoolClient intent', () => {
   test('passes the agent intent to the API tool as `_intent`, without overriding one it already has', async () => {
     const seen: Array<Record<string, unknown>> = [];
-    const server = createSdkMcpServer({
-      name: 'api_test',
-      version: '1.0.0',
-      tools: [tool('api_test', 'test', { path: z.string(), _intent: z.string().optional() }, async (args) => {
-        seen.push(args);
-        return { content: [{ type: 'text' as const, text: 'ok' }] };
-      })],
+    const server = new McpServer({ name: 'api_test', version: '1.0.0' });
+    server.registerTool('api_test', {
+      description: 'test',
+      inputSchema: { path: z.string(), _intent: z.string().optional() },
+    }, async (args) => {
+      seen.push(args);
+      return { content: [{ type: 'text' as const, text: 'ok' }] };
     });
-    const client = new ApiSourcePoolClient(server.instance as McpServer);
+    const client = new ApiSourcePoolClient(server);
     await client.callTool('api_test', { path: '/search' }, { intent: 'find the outage thread' });
     await client.callTool('api_test', { path: '/search', _intent: 'own' }, { intent: 'other' });
     await client.callTool('api_test', { path: '/search' });

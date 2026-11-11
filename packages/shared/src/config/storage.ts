@@ -525,7 +525,6 @@ export function setBrowserToolEnabled(enabled: boolean): void {
 
   // Clear session tool caches so all sessions pick up the change immediately.
   // Lazy import to avoid circular dependency (storage ← session-scoped-tools ← storage).
-  import('../agent/session-scoped-tools.ts').then(m => m.invalidateAllSessionToolsCaches()).catch(() => {});
 }
 
 /**
@@ -2736,7 +2735,7 @@ export function getLlmConnections(): LlmConnection[] {
   if (!config) return [];
 
   // Return empty array if not migrated yet - caller should call migration on startup
-  return config.llmConnections || [];
+  return (config.llmConnections ?? []).filter(connection => connection.managedProvider !== 'antigravity');
 }
 
 /**
@@ -2942,7 +2941,8 @@ export function getDefaultLlmConnection(): string | null {
     return null;
   }
 
-  return config.defaultLlmConnection || config.llmConnections[0]?.slug || null;
+  const available = config.llmConnections.filter(connection => connection.managedProvider !== 'antigravity');
+  return available.find(connection => connection.slug === config.defaultLlmConnection)?.slug ?? available[0]?.slug ?? null;
 }
 
 /**

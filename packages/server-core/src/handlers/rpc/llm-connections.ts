@@ -469,17 +469,9 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
     try {
       // Check if this is an update or create
       const existing = getLlmConnection(connection.slug)
-      if (connection.managedProvider && existing?.managedProvider !== connection.managedProvider) {
-        return { success: false, error: 'Create this transport through the native Antigravity menu.' }
+      if (connection.managedProvider) {
+        return { success: false, error: 'The built-in Antigravity connection has been retired.' }
       }
-      if (existing?.managedProvider === 'antigravity' && (
-        connection.managedProvider !== existing.managedProvider ||
-        connection.providerType !== existing.providerType ||
-        connection.authType !== existing.authType ||
-        connection.baseUrl !== existing.baseUrl ||
-        connection.customEndpoint?.api !== existing.customEndpoint?.api ||
-        connection.managedCredentialVersion !== existing.managedCredentialVersion
-      )) return { success: false, error: 'Manage this transport in the native Antigravity menu.' }
       if (existing) {
         // Update existing connection (can't change slug)
         const { slug: _slug, ...updates } = connection
@@ -523,7 +515,6 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
   server.handle(RPC_CHANNELS.llmConnections.DELETE, async (_ctx, slug: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const connection = getLlmConnection(slug)
-      if (connection?.managedProvider === 'antigravity') return { success: false, error: 'Disconnect this transport through the native Antigravity menu.' }
       if (!connection) {
         return { success: false, error: 'Connection not found' }
       }

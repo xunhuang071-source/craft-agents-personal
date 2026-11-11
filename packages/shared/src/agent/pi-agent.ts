@@ -593,7 +593,6 @@ export class PiAgent extends BaseAgent {
       baseUrl: runtime.baseUrl,
       customEndpoint: runtime.customEndpoint,
       customModels: runtime.customModels,
-      managedProvider: runtime.managedProvider,
       // Branch params for Pi SDK session fork
       branchFromSdkSessionId: this.config.session?.branchFromSdkSessionId,
       branchFromSessionPath: this.config.session?.branchFromSessionPath,
@@ -685,6 +684,11 @@ export class PiAgent extends BaseAgent {
       const slug = this.config.connectionSlug || 'pi';
 
       if (this.config.authType === 'oauth') {
+        if (piAuthProvider === 'anthropic') {
+          const { getValidClaudeOAuthToken } = await import('../auth/state.ts');
+          const { accessToken } = await getValidClaudeOAuthToken(slug);
+          return accessToken ? { provider: piAuthProvider, credential: { type: 'api_key', key: accessToken } } : null;
+        }
         const oauth = await credentialManager.getLlmOAuth(slug);
         if (oauth?.accessToken) {
           // Copilot: pass full OAuth credential so the Pi SDK can derive the
@@ -817,6 +821,12 @@ export class PiAgent extends BaseAgent {
     const refreshPromise = (async () => {
       const piAuthProvider = getBackendRuntime(this.config).piAuthProvider;
       const credentialManager = getCredentialManager();
+      if (piAuthProvider === 'anthropic') {
+        const piAuth = await this.getPiAuth();
+        if (piAuth && this.subprocess) this.send({ type: 'token_update', piAuth });
+        if (!piAuth) this.onBackendAuthRequired?.('Please sign in again');
+        return;
+      }
       const stored = await credentialManager.getLlmOAuth(slug);
 
       if (!stored?.refreshToken) {

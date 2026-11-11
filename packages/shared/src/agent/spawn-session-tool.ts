@@ -9,7 +9,7 @@
  * - Default: Creates a session and sends the prompt (fire-and-forget)
  */
 
-import { tool } from '@anthropic-ai/claude-agent-sdk';
+import { tool } from './tool.ts';
 import { z } from 'zod';
 import type { SpawnSessionResult, SpawnSessionHelpResult } from './base-agent.ts';
 

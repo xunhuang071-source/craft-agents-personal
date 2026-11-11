@@ -14,7 +14,7 @@
  * All calls are delegated to the agent backend's queryLlm() implementation.
  */
 
-import { tool } from '@anthropic-ai/claude-agent-sdk';
+import { tool } from './tool.ts';
 import { z } from 'zod';
 
 // Tool result type - matches what the SDK expects

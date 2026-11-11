@@ -34,7 +34,9 @@ if 'retainedPiSha256' in lock['frozen']:
     assert sha(base / 'resources/pi-agent-server/index.js') == lock['frozen']['retainedPiSha256'], 'Original Pi changed'
 assert tree(base / 'dist/renderer') == lock['frozen']['rendererTreeSha256'], 'Frozen renderer changed'
 for rel, value in lock['frozen']['files'].items(): assert sha(app / rel) == value, 'Frozen resource changed: ' + rel
-components = {'mainSha256': sha(base / 'dist/main.cjs'), 'managedPiSha256': sha(base / 'resources/antigravity-pi-agent-server/index.js')}
+components = {'mainSha256': sha(base / 'dist/main.cjs')}
+if 'managedPiSha256' in lock['expectedBuild']:
+    components['managedPiSha256'] = sha(base / 'resources/antigravity-pi-agent-server/index.js')
 if 'standardPiSha256' in lock['expectedBuild']:
     assert 'retainedPiSha256' not in lock['frozen'], 'Pi cannot be both frozen and rebuilt'
     components['standardPiSha256'] = sha(base / 'resources/pi-agent-server/index.js')

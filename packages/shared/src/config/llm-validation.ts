@@ -1,17 +1,3 @@
-/**
- * Centralized LLM Connection Validation
- *
- * Validates LLM connections by making a minimal query through the Claude Agent SDK.
- * Uses the same code path as actual agent sessions (query() with maxTurns:1).
- *
- * Follows the pattern established in ClaudeAgent.runMiniCompletion() — env-based
- * credential injection, no tools, minimal system prompt.
- */
-
-import { query } from '@anthropic-ai/claude-agent-sdk';
-import { getDefaultOptions } from '../agent/options.ts';
-import { debug } from '../utils/debug.ts';
-
 export interface LlmValidationConfig {
   /** Model to test with */
   model: string;
@@ -28,73 +14,32 @@ export interface LlmValidationResult {
   error?: string;
 }
 
-/**
- * Validate an Anthropic/Anthropic-compatible LLM connection.
- *
- * Makes a minimal query via the Claude Agent SDK to verify:
- * - Credentials are valid
- * - Model is accessible
- * - Endpoint is reachable
- *
- * @returns Validation result with parsed error message on failure
- */
-export async function validateAnthropicConnection(
-  config: LlmValidationConfig
-): Promise<LlmValidationResult> {
-  debug('[llm-validation] Validating connection', { model: config.model, hasApiKey: !!config.apiKey, hasOAuth: !!config.oauthToken, baseUrl: config.baseUrl });
-
-  // Build env overrides for credentials — avoids mutating process.env
-  const envOverrides: Record<string, string> = {};
-
-  if (config.apiKey) {
-    envOverrides.ANTHROPIC_API_KEY = config.apiKey;
-    // Clear OAuth to avoid conflicts
-    envOverrides.CLAUDE_CODE_OAUTH_TOKEN = '';
-  } else if (config.oauthToken) {
-    envOverrides.CLAUDE_CODE_OAUTH_TOKEN = config.oauthToken;
-    // Clear API key to avoid conflicts
-    envOverrides.ANTHROPIC_API_KEY = '';
-  }
-
-  if (config.baseUrl) {
-    envOverrides.ANTHROPIC_BASE_URL = config.baseUrl;
-  }
-
-  const abortController = new AbortController();
+/** Verify that the configured model responds to the Anthropic Messages API. */
+export async function validateAnthropicConnection(config: LlmValidationConfig): Promise<LlmValidationResult> {
+  const baseUrl = (config.baseUrl || 'https://api.anthropic.com').replace(/\/+$/, '').replace(/\/v1$/, '');
+  const headers = new Headers({ 'content-type': 'application/json', 'anthropic-version': '2023-06-01' });
+  if (config.apiKey) headers.set('x-api-key', config.apiKey);
+  else if (config.oauthToken) headers.set('authorization', `Bearer ${config.oauthToken}`);
 
   try {
-    const options = {
-      ...getDefaultOptions(envOverrides),
-      model: config.model,
-      maxTurns: 1,
-      abortController,
-      systemPrompt: 'Reply with OK.',
-      tools: [] as string[], // No tools
-      persistSession: false,
-    };
-
-    const q = query({ prompt: 'hi', options });
-
-    // Consume the query — we just need it to succeed or fail
-    for await (const msg of q) {
-      if (msg.type === 'assistant') {
-        // Check if the SDK reported an error on the assistant message
-        if (msg.error) {
-          abortController.abort();
-          return { success: false, error: parseValidationError(msg.error) };
-        }
-        // Got a successful response — connection works, abort early
-        abortController.abort();
-        break;
-      }
+    const response = await fetch(`${baseUrl}/v1/messages`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(20_000),
+      redirect: 'error',
+      body: JSON.stringify({ model: config.model, max_tokens: 8, messages: [{ role: 'user', content: 'Reply OK.' }] }),
+    });
+    if (!response.ok) {
+      await response.body?.cancel();
+      return { success: false, error: parseValidationError(String(response.status)) };
     }
-
+    const payload = await response.json() as { type?: string; content?: unknown };
+    if (payload?.type !== 'message' || !Array.isArray(payload.content)) {
+      return { success: false, error: 'Endpoint did not return an Anthropic message.' };
+    }
     return { success: true };
   } catch (error) {
-    abortController.abort();
-    const msg = error instanceof Error ? error.message : String(error);
-    debug('[llm-validation] Validation failed:', msg);
-    return { success: false, error: parseValidationError(msg) };
+    return { success: false, error: parseValidationError(error instanceof Error ? error.message : 'Connection failed') };
   }
 }
 

@@ -86,9 +86,8 @@ import { bootstrapServer, releaseServerLock } from '@craft-agent/server-core/boo
 import { createMessagingBootstrap, type MessagingBootstrapHandle } from '@craft-agent/messaging-gateway'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { initModelRefreshService, getModelRefreshService, setFetcherPlatform } from '@craft-agent/server-core/model-fetchers'
-import { setSearchPlatform, setImageProcessor, disposeAntigravityService } from '@craft-agent/server-core/services'
-import { createApplicationMenu, rebuildMenu } from './menu'
-import { bindAntigravityMenuHost, disposeAntigravityMenu } from './antigravity-menu'
+import { setSearchPlatform, setImageProcessor } from '@craft-agent/server-core/services'
+import { createApplicationMenu } from './menu'
 import { WindowManager } from './window-manager'
 import { loadWindowState, saveWindowState } from './window-state'
 import { getWorkspaces, getWorkspaceByNameOrId, loadStoredConfig, addWorkspace, saveConfig } from '@craft-agent/shared/config'
@@ -735,11 +734,6 @@ app.whenReady().then(async () => {
       oauthFlowStore = instance.oauthFlowStore
       moduleSink = instance.wsServer.push.bind(instance.wsServer)
       moduleClientResolver = resolveClientId
-      bindAntigravityMenuHost({
-        sessionManager: instance.sessionManager,
-        onConnectionsChanged: () => instance.wsServer.push(RPC_CHANNELS.llmConnections.CHANGED, { to: 'all' }),
-        onMenuChanged: () => { void rebuildMenu() },
-      })
 
       // -----------------------------------------------------------------------
       // Messaging Gateway — attach the WS publisher, init local workspaces,
@@ -1241,8 +1235,6 @@ async function performQuitCleanup(): Promise<void> {
     sessionManager.cleanup()
   }
 
-  disposeAntigravityMenu()
-  await disposeAntigravityService().catch(() => mainLog.warn('Antigravity cleanup failed'))
 
   // Clean up browser pane instances
   if (browserPaneManager) {

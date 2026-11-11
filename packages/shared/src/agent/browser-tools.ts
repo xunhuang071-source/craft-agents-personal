@@ -10,7 +10,7 @@
  * (getOrCreateForSession pattern), so commands don't need instance IDs.
  */
 
-import { tool } from '@anthropic-ai/claude-agent-sdk';
+import { tool } from './tool.ts';
 import { z } from 'zod';
 import { executeBrowserToolCommand } from './browser-tool-runtime.ts';
 

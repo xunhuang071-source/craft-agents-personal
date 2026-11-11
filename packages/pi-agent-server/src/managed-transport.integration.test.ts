@@ -12,6 +12,7 @@ const bundle = process.env.CRAFT_PI_TEST_BUNDLE
 const integration = bundle ? test : test.skip
 // Main-tree consumers can select normal policy without changing this fixture.
 const defaultManaged = process.env.CRAFT_PI_TEST_MANAGED !== '0'
+const managedIntegration = bundle && defaultManaged ? test : test.skip
 const cleanups: Array<() => Promise<void>> = []
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup() })
 type Row = Record<string, any>
@@ -131,7 +132,7 @@ integration('real Pi subprocess: streaming file write/read, proxy tool, and imag
   expect(fixture.messages.filter(m => m.type === 'error')).toHaveLength(0)
 }, 30000)
 
-integration('real Pi subprocess: 429 ends the turn without request replay', async () => {
+managedIntegration('real Pi subprocess: 429 ends the turn without request replay', async () => {
   const fixture = await startFixture(() => new Response(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'fixture rate limit' } }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '0' } }))
   fixture.send({ type: 'prompt', id: 'limited', message: 'Reply once', systemPrompt: 'Reply once.' })
   await until(() => fixture.messages.some(m => m.type === 'event' && m.event?.type === 'agent_end'), 'rate-limit terminal event')
@@ -150,7 +151,7 @@ integration('real Pi subprocess: user stop cancels an open stream without retry'
   expect(fixture.requests).toHaveLength(1)
 }, 15000)
 
-integration('real Pi subprocess: ephemeral managed 429 never replays a request', async () => {
+managedIntegration('real Pi subprocess: ephemeral managed 429 never replays a request', async () => {
   const fixture = await startFixture(() => new Response(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'fixture utility limit' } }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '0' } }))
   fixture.send({ type: 'llm_query', id: 'utility-limit', request: { prompt: 'Reply once', systemPrompt: 'Fixture utility', model: 'fixture-gemini' } })
   await until(() => fixture.messages.some(m => m.type === 'llm_query_result' && m.id === 'utility-limit'), 'ephemeral rate-limit completion')
