@@ -47,4 +47,13 @@ node scripts/personal-build-reading-candidate.mjs \
 
 只执行 Vite renderer 构建，复制已校验的 1.4.0 应用其余资源，必要重签名。候选目录保存 component-lock、candidate-manifest、完整应用文件清单、差异与隐私扫描。`personal-audit-candidate.py --scope diagram-reading` 禁止 main、Pi、preload、interceptor、工作台等其他组件漂移。主程序可执行代码在签名段之前也必须一致。
 
+## 候选包最终结果
+
+- 真实候选再次通过 146 项 Electron 界面断言。
+- 与正式版 renderer 的全部 source map 对比，恰好只有上述 4 个组件变化，新增 1 个尺寸辅助模块，无其他源码模块变化。
+- 主进程、Pi、preload、interceptor、工作台和其他非 renderer 资源原字节一致；可执行代码的签名前内容也一致。
+- 1443 个代码/静态资源扫描无未审查的高置信命中。新 source map 内 markdown-it-task-lists 文档 URL 的既有误报已按文件和内容双重摘要逐条核实。
+- ZIP 解压后的 1741 个文件、14 个符号链接与候选完全一致，签名复验通过。
+- 本地目录 `native-artifacts/diagram-reading-v1.4.1-rc.1/` 保存 ZIP、SHA256SUMS、组件锁、源码映射差异和完整验证摘要。
+
 本地候选不代表正式晋升。用户退出应用并安装验收后，再决定是否更新正式锁和公开 Release。

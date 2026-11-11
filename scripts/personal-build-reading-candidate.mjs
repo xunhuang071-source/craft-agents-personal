@@ -26,6 +26,8 @@ run('python3', ['scripts/personal-app-inventory.py', '--app', base, '--lock', lo
 // Vite only. Never rebuild main, Pi, preloads, interceptor or the workbench.
 run(bun, ['node_modules/vite/bin/vite.js', 'build', '--config', 'apps/electron/vite.config.ts', '--outDir', renderer, '--emptyOutDir'])
 const lock = structuredClone(baseline); lock.version = version; lock.frozen.rendererTreeSha256 = tree(renderer)
+lock.previousAcceptance = baseline.acceptance
+lock.acceptance = { version, installedByUser: false, manualReview: 'pending', publicationAuthorizedByUser: false }
 lock.readingUpdate = { baselineVersion: baseline.version, scope: 'inline Mermaid sizing and shared image/diagram preview gestures', renderer: 'pele@1.12.0', installedAutomatically: false }
 fs.mkdirSync(out)
 const relRenderer = 'Contents/Resources/app/dist/renderer'

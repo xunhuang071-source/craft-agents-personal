@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "version": "wallee-v1.4.1-rc.1",
+  "baselineVersion": "wallee-v1.4.0",
+  "sourceCommit": "2a1ec12c0c46a60fe848c8a23a0557c0d77365a9",
+  "sourceDirty": false,
+  "rendererTreeSha256": "af576aed63123f7d89191b27660c554f2f5d9a9ec7e20b482c3396eb902dd2a3",
+  "mainSha256": "692701a3ccba36de1a1c654690b7f66fc6a33391c65637db1209a80318755204",
+  "standardPiSha256": "90bff5453e4c18bacf84d63b5d489aa054b53d218af18c6257562c77174d54cb",
+  "installed": false,
+  "published": false,
+  "validation": {
+    "version": "wallee-v1.4.1-rc.1",
+    "unitTestsPassed": 43,
+    "electronTypecheckPassed": true,
+    "electronAssertionsPassed": 146,
+    "viewportWidths": [
+      1280,
+      900
+    ],
+    "mainAndOtherFrozenResourcesUnchanged": true,
+    "rendererSourceChanges": {
+      "changedModules": [
+        "packages/ui/src/components/markdown/MarkdownMermaidBlock.tsx",
+        "packages/ui/src/components/overlay/ImagePreviewOverlay.tsx",
+        "packages/ui/src/components/overlay/MermaidPreviewOverlay.tsx",
+        "packages/ui/src/components/overlay/useRichBlockInteractions.ts"
+      ],
+      "addedModules": [
+        "packages/ui/src/components/markdown/mermaid-inline-layout.ts"
+      ],
+      "removedModules": []
+    },
+    "unreviewedSecretFindings": 0,
+    "installed": false,
+    "published": false,
+    "zipExtractInventoryMatches": true,
+    "zipSignatureVerified": true,
+    "archiveSha256": "4262f9f5989707f0ae04e99e9b6acb9f5d953328f650b22483a598a2c12990ae",
+    "archiveBytes": 193815920
+  }
+}

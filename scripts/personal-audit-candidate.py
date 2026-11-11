@@ -66,6 +66,11 @@ patterns = {
 # slug inside markdown-it-task-lists, not a provider credential. No bundle/test
 # directory is exempted; changing this source map invalidates the review.
 review = {
+    ('Contents/Resources/app/dist/renderer/assets/index-DhqHKzAi.js.map',
+     'fd6476457843e6963617e0ab980120dd6400a19c92941945e9f8213b94bc94d8',
+     'provider-key',
+     '943b839ecafef60eae285966eb79ba49213426741320e3866181a28b2c7b394d'):
+    'Verified sourcesContent: markdown-it-task-lists/index.js documentation URL slug, identical to the reviewed baseline value',
     ('Contents/Resources/app/dist/renderer/assets/index-DYOH3DVB.js.map',
      'ad5c99f913209bc8d25d41b0559dbfa108120f0669f2970abd8c4dc7365c6716',
      'provider-key',
