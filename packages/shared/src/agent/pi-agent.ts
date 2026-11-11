@@ -83,7 +83,7 @@ import { getPermissionModeDiagnostics } from './mode-manager.ts';
 // call_llm pre-execution pipeline
 
 // McpClientPool for source tool proxying (centralized pool from main process)
-import type { McpClientPool } from '../mcp/mcp-pool.ts';
+import type { McpClientPool, ProxyToolDef } from '../mcp/mcp-pool.ts';
 
 // Path utilities
 import { join } from 'path';
@@ -182,6 +182,8 @@ export class PiAgent extends BaseAgent {
 
   // Pi session ID (managed by subprocess, reported back)
   private piSessionId: string | null = null;
+
+  private sentProxyTools: string | null = null;
 
   // Callback server port (managed by subprocess)
   private callbackPort: number = 0;
@@ -612,19 +614,14 @@ export class PiAgent extends BaseAgent {
       this.debug(`Failed to configure PI auto-compaction (continuing): ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Register session-scoped tools as proxy tools in the subprocess.
-    // These tools (SubmitPlan, config_validate, source auth, call_llm, etc.)
-    // are executed in the main process when the LLM calls them.
     this.assertBackendSessionToolParity();
-    let sessionToolDefs = getSessionToolProxyDefs();
+    this.sentProxyTools = null;
+    this.syncProxyTools();
+  }
 
-    // Mirror Claude's gate: hide `browser_tool` when the user has disabled
-    // the built-in browser tool. Without this filter, Pi would still advertise
-    // `mcp__session__browser_tool` while Claude doesn't — sessions would behave
-    // inconsistently depending on backend.
-    if (!getBrowserToolEnabled()) {
-      sessionToolDefs = sessionToolDefs.filter(d => d.name !== 'mcp__session__browser_tool');
-    }
+  private buildProxyToolDefs(): ProxyToolDef[] {
+    let sessionToolDefs = getSessionToolProxyDefs();
+    if (!getBrowserToolEnabled()) sessionToolDefs = sessionToolDefs.filter(d => d.name !== 'mcp__session__browser_tool');
 
     // Patch call_llm description with provider-specific model hint
     if (this.config.miniModel) {
@@ -634,29 +631,18 @@ export class PiAgent extends BaseAgent {
       }
     }
 
-    this.send({
-      type: 'register_tools',
-      tools: sessionToolDefs,
-    });
-    this.debug(`Registered ${sessionToolDefs.length} session tools with subprocess`);
-
-    // If pool has source tools, register them with the subprocess.
-    this.registerPoolToolsWithSubprocess();
+    return [...sessionToolDefs, ...(this.mcpPool?.getProxyToolDefs() ?? [])];
   }
 
-  /**
-   * Send pool's proxy tool defs to subprocess for model visibility.
-   */
-  private registerPoolToolsWithSubprocess(): void {
-    if (!this.mcpPool) return;
-    const proxyDefs = this.mcpPool.getProxyToolDefs();
-    if (proxyDefs.length > 0) {
-      this.send({
-        type: 'register_tools',
-        tools: proxyDefs,
-      });
-      this.debug(`Registered ${proxyDefs.length} MCP source tools from pool with subprocess`);
-    }
+  /** Every message is the complete tool set, including when the last source is disabled. */
+  private syncProxyTools(): void {
+    if (!this.subprocess?.stdin?.writable) return;
+    const tools = this.buildProxyToolDefs();
+    const json = JSON.stringify(tools);
+    if (json === this.sentProxyTools) return;
+    this.send({ type: 'register_tools', tools });
+    this.sentProxyTools = json;
+    this.debug(`Sent complete proxy tool snapshot (${tools.length} tools)`);
   }
 
   /**
@@ -2415,7 +2401,7 @@ export class PiAgent extends BaseAgent {
     await super.setSourceServers(mcpServers, apiServers, intendedSlugs);
 
     // Register pool's proxy tool defs with subprocess so the model can call them.
-    this.registerPoolToolsWithSubprocess();
+    this.syncProxyTools();
   }
 
   // ============================================================

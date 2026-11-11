@@ -1150,6 +1150,20 @@ describe('prepareMcpOAuth', () => {
     globalThis.fetch = originalFetch;
   });
 
+  for (const scopes of [undefined, [], ['app:read', 'app:write']]) {
+    it(`passes explicit scopes, with absent/empty remaining absent: ${JSON.stringify(scopes)}`, async () => {
+      mockFetch.mockImplementation((url: string, options?: RequestInit) => {
+        if (options?.method === 'HEAD') return Promise.resolve(new Response(null, { status: 200 }));
+        if (url === 'https://example.com/.well-known/oauth-authorization-server') return Promise.resolve(new Response(JSON.stringify({ authorization_endpoint: 'https://example.com/oauth/authorize', token_endpoint: 'https://example.com/oauth/token' })));
+        return Promise.resolve(new Response('Not Found', { status: 404 }));
+      });
+      const flow = await prepareMcpOAuth('https://example.com/mcp', { callbackPort: 8914, scopes });
+      const url = new URL(flow.authUrl);
+      expect(url.searchParams.get('scope')).toBe(scopes?.length ? 'app:read app:write' : null);
+      expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    });
+  }
+
   it('falls back to the default client ID when registration is forbidden', async () => {
     mockFetch.mockImplementation((url: string, options?: RequestInit) => {
       if (options?.method === 'HEAD') {

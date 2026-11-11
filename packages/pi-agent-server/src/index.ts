@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { activateProxySubset } from './proxy-tool-sync.ts';
 /**
  * Pi Agent Server
  *
@@ -304,6 +305,7 @@ const pendingSessionToolCalls = new Map<string, { toolName: string; arguments: R
 
 // Proxy tool definitions from main process
 let proxyToolDefs: ProxyToolDef[] = [];
+let registeredProxyToolDefs: ProxyToolDef[] = [];
 
 // Speculative prefetch for read-only tools (enables parallel execution despite Pi SDK's sequential loop).
 // When the LLM emits multiple call_llm tool calls in a single message, we fire all requests
@@ -661,6 +663,7 @@ async function ensureSession(): Promise<AgentSession> {
     createFindToolDefinition(cwd),
     createLsToolDefinition(cwd),
   ];
+  const sessionProxyDefs = proxyToolDefs;
   const proxyTools = buildProxyTools();
   const wrappedAll = wrapToolsWithHooks([...builtinDefs, ...webTools, ...proxyTools]);
   const toolAllowlist = wrappedAll.map(t => t.name);
@@ -774,7 +777,8 @@ async function ensureSession(): Promise<AgentSession> {
   piSession = session;
   piSessionPromptOverride = systemPromptOverride;
 
-  toolsChanged = false;
+  registeredProxyToolDefs = sessionProxyDefs;
+  toolsChanged = JSON.stringify(proxyToolDefs) !== JSON.stringify(sessionProxyDefs);
   debugLog(`Created Pi session: ${session.sessionId} (${wrappedAll.length} tools)`);
 
   // Notify main process of session ID
@@ -830,6 +834,7 @@ function wrapToolsWithHooks(tools: ToolDefinition<any, any>[]): ToolDefinition<a
 
 function wrapSingleTool(tool: ToolDefinition<any, any>): ToolDefinition<any, any> {
   const originalExecute = tool.execute;
+  const isProxy = proxyToolDefs.some(def => def.name === tool.name);
   const parameters = allowCraftMetadataProperties(tool.parameters);
 
   const wrappedExecute: ToolDefinition<any, any>['execute'] = async (
@@ -839,6 +844,7 @@ function wrapSingleTool(tool: ToolDefinition<any, any>): ToolDefinition<any, any
     onUpdate,
     ctx,
   ) => {
+    if (isProxy && !proxyToolDefs.some(def => def.name === tool.name)) return proxyToolResult({ content: 'This tool is no longer enabled in this session.', isError: true });
     const sdkToolName = PI_TOOL_NAME_MAP[tool.name] || tool.name;
     let inputObj: Record<string, unknown> = { ...(params as Record<string, unknown>) };
 
@@ -956,6 +962,9 @@ function buildProxyTools(): ToolDefinition<any, any>[] {
       toolCallId: string,
       params: any,
     ): Promise<AgentToolResult<any>> => {
+      if (!proxyToolDefs.some(tool => tool.name === def.name)) {
+        return proxyToolResult({ content: 'This tool is no longer enabled in this session.', isError: true });
+      }
       // Check speculative prefetch cache first (parallel call_llm optimization).
       // If this tool was prefetched on message_end, the request is already in-flight —
       // just await the result instead of sending a duplicate request.
@@ -971,6 +980,8 @@ function buildProxyTools(): ToolDefinition<any, any>[] {
 
       // Permission checking via main process
       const approvedInput = await requestPreToolUseApproval(def.name, inputObj, toolCallId);
+
+      if (!proxyToolDefs.some(tool => tool.name === def.name)) return proxyToolResult({ content: 'This tool is no longer enabled in this session.', isError: true });
 
       // Execute via main process
       const requestId = `proxy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1420,17 +1431,19 @@ async function handlePrompt(msg: Extract<InboundMessage, { type: 'prompt' }>): P
   currentUserMessage = msg.message;
 
   try {
-    // If proxy tools changed since last session creation, dispose and recreate.
-    // This avoids calling _buildRuntime() for dynamic tool updates — instead
-    // we create a fresh session via continueRecent() with all tools known upfront.
+    // Removed tools use the public Pi 1.4 API, so disabling a source never
+    // rebuilds the session or re-enters the existing branch/fork path.
     if (toolsChanged && piSession) {
-      debugLog('Recreating session due to tool changes');
-      if (unsubscribeEvents) {
-        unsubscribeEvents();
-        unsubscribeEvents = null;
+      await waitForCompaction(piSession, { timeoutMs: PROMPT_COMPACT_WAIT_MS, log: debugLog });
+      if (piSession.isStreaming || piSession.isCompacting) throw new Error('Tool refresh is waiting for the current session to become idle; retry after it finishes.');
+      if (activateProxySubset(piSession, registeredProxyToolDefs, proxyToolDefs)) {
+        toolsChanged = false;
+        debugLog('Updated active proxy tools without rebuilding the session');
+      } else {
+        if (unsubscribeEvents) { unsubscribeEvents(); unsubscribeEvents = null; }
+        piSession.dispose();
+        piSession = null;
       }
-      piSession.dispose();
-      piSession = null;
     }
 
     const session = await ensureSession();
@@ -1480,20 +1493,10 @@ async function handlePrompt(msg: Extract<InboundMessage, { type: 'prompt' }>): P
 }
 
 function handleRegisterTools(msg: Extract<InboundMessage, { type: 'register_tools' }>): void {
-  // Merge: replace existing tools by name, add new ones
-  const incoming = new Map(msg.tools.map(t => [t.name, t]));
-  proxyToolDefs = [
-    ...proxyToolDefs.filter(t => !incoming.has(t.name)),
-    ...msg.tools,
-  ];
-  debugLog(`Registered ${msg.tools.length} proxy tools (total: ${proxyToolDefs.length}): ${msg.tools.map(t => t.name).join(', ')}`);
-
-  // If session exists, mark for recreation on next prompt.
-  // Don't dispose mid-generation — the flag is checked in handlePrompt().
-  if (piSession) {
-    toolsChanged = true;
-    debugLog('Proxy tools changed — session will be recreated on next prompt');
-  }
+  const changed = JSON.stringify(msg.tools) !== JSON.stringify(proxyToolDefs);
+  proxyToolDefs = msg.tools;
+  if (piSession && changed) toolsChanged = true;
+  debugLog(`Received complete proxy snapshot (${proxyToolDefs.length} tools${changed ? '' : ', unchanged'})`);
 }
 
 function handleToolExecuteResponse(msg: Extract<InboundMessage, { type: 'tool_execute_response' }>): void {

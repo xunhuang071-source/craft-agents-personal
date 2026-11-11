@@ -40,10 +40,10 @@ function sse(content: { text?: string; stopReason?: string; tool?: { id: string;
   return new Response(events.map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
 }
 async function startFixture(handler: (request: Request, body: Row) => Response | Promise<Response>, options: {
-  managed?: boolean; bundlePath?: string; root?: string;
+  managed?: boolean; bundlePath?: string; root?: string; sessionSlug?: string; initExtras?: Row; beforeApproval?: (message: Row, send: (message: Row) => void) => boolean;
 } = {}) {
   const root = options.root ?? await mkdtemp(join(tmpdir(), 'craft-managed-pi-'))
-  const session = join(root, 'workspace', 'sessions', 'test-session')
+  const session = join(root, 'workspace', 'sessions', options.sessionSlug ?? 'test-session')
   await mkdir(session, { recursive: true })
   const requests: Row[] = []
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
@@ -67,6 +67,7 @@ async function startFixture(handler: (request: Request, body: Row) => Response |
     let message: Row
     try { message = JSON.parse(line) } catch { return }
     messages.push(message)
+    if (message.type === 'pre_tool_use_request' && options.beforeApproval?.(message, send)) return;
     if (message.type === 'pre_tool_use_request') send({ type: 'pre_tool_use_response', requestId: message.requestId, action: 'allow' })
     if (message.type === 'tool_execute_request') send({ type: 'tool_execute_response', requestId: message.requestId, result: {
       content: message.toolName === 'mcp__session__mermaid_validate' ? 'fixture Pele host validation' : 'fixture MCP result',
@@ -86,6 +87,7 @@ async function startFixture(handler: (request: Request, body: Row) => Response |
     providerType: 'pi_compat', authType: 'api_key_with_endpoint',
     baseUrl: `http://127.0.0.1:${server.port}`, customEndpoint: { api: 'anthropic-messages' },
     customModels: [{ id: 'fixture-gemini', supportsImages: true, contextWindow: 1048576, maxTokens: 65536 }],
+    ...options.initExtras,
   })
   await until(() => messages.some(m => m.type === 'ready') || exited, 'subprocess ready')
   if (exited) throw new Error(`Subprocess failed: ${stderr}`)
@@ -297,3 +299,75 @@ historyIntegration('real Pi subprocess: synthetic compaction and branch summarie
   for (const expected of [...initialRows, ...latestRows]) expect(finalRows.find(entry => entry.id === expected.id)).toEqual(expected)
   expect(rollback.messages.filter(m => m.type === 'error')).toHaveLength(0)
 }, 30000)
+
+
+integration('source removal and reactivation keep the same Pi session and its context', async () => {
+  const source = { name: 'mcp__fixture__read', description: 'Fixture source', inputSchema: { type: 'object', properties: {} } };
+  const session = { name: 'mcp__session__fixture', description: 'Fixture session tool', inputSchema: { type: 'object', properties: {} } };
+  const fixture = await startFixture(() => sse({ text: 'own-session-marker' }), { managed: false });
+  const turns = [[session, source], [session], [session], [session, source]];
+  for (const [i, tools] of turns.entries()) {
+    fixture.send({ type: 'register_tools', tools });
+    fixture.send({ type: 'prompt', id: `snapshot-${i}`, message: `snapshot ${i}`, systemPrompt: 'Keep the fixture context.' });
+    await until(() => fixture.messages.filter(m => m.type === 'event' && m.event?.type === 'agent_end').length === i + 1, `snapshot turn ${i}: ${fixture.stderr()}`);
+    const request = fixture.requests[i]!;
+    const names = request.tools.map((t: Row) => t.name);
+    expect(names).toContain(session.name);
+    expect(names.includes(source.name)).toBe(i === 0 || i === 3);
+    expect(names).toContain('read');
+    if (i > 0) expect(JSON.stringify(request.messages)).toContain('own-session-marker');
+  }
+  expect(fixture.messages.filter(m => m.type === 'session_id_update')).toHaveLength(1);
+  expect(fixture.messages.filter(m => m.type === 'error')).toHaveLength(0);
+}, 30000);
+
+
+integration('source removal preserves a branch cutoff and its own conversation without refork', async () => {
+  const parent = await startFixture(() => sse({ text: 'parent-before-branch' }), { managed: false });
+  parent.send({ type: 'prompt', id: 'parent', message: 'Parent fixture', systemPrompt: 'Reply briefly.' });
+  await until(() => parent.messages.some(m => m.type === 'event' && m.event?.type === 'agent_end'), 'parent ready');
+  const source = { name: 'mcp__fixture__read', description: 'Fixture source', inputSchema: { type: 'object', properties: {} } };
+  const child = await startFixture(() => sse({ text: 'child-own-marker' }), { managed: false, root: parent.root, sessionSlug: 'branch', initExtras: { branchFromSessionPath: join(parent.root, 'workspace', 'sessions', 'test-session') } });
+  child.send({ type: 'register_tools', tools: [source] });
+  child.send({ type: 'prompt', id: 'child-first', message: 'Child fixture', systemPrompt: 'Reply briefly.' });
+  await until(() => child.messages.some(m => m.type === 'event' && m.event?.type === 'agent_end'), 'child ready');
+  parent.send({ type: 'prompt', id: 'parent-later', message: 'parent-after-branch-marker', systemPrompt: 'Reply briefly.' });
+  await until(() => parent.messages.filter(m => m.type === 'event' && m.event?.type === 'agent_end').length === 2, 'parent later turn');
+  child.send({ type: 'register_tools', tools: [] });
+  child.send({ type: 'prompt', id: 'child-next', message: 'Continue child', systemPrompt: 'Reply briefly.' });
+  await until(() => child.messages.filter(m => m.type === 'event' && m.event?.type === 'agent_end').length === 2, `child second turn: ${child.stderr()}`);
+  const messages = JSON.stringify(child.requests[1]?.messages);
+  expect(messages).toContain('child-own-marker'); expect(messages).not.toContain('parent-after-branch-marker');
+  expect(child.messages.filter(m => m.type === 'session_id_update')).toHaveLength(1);
+  expect(child.messages.filter(m => m.type === 'error')).toHaveLength(0);
+}, 30000);
+
+integration('removing a source during a pending permission check blocks stale execution', async () => {
+  const source = { name: 'mcp__fixture__stale', description: 'Fixture source', inputSchema: { type: 'object', properties: {} } };
+  let calls = 0;
+  const fixture = await startFixture(() => calls++ === 0 ? sse({ tool: { id: 'stale', name: source.name, input: {} } }) : sse({ text: 'stale call blocked' }), { managed: false, beforeApproval: (m, send) => {
+    if (m.toolName !== source.name) return false;
+    send({ type: 'register_tools', tools: [] });
+    send({ type: 'pre_tool_use_response', requestId: m.requestId, action: 'allow' }); return true;
+  } });
+  fixture.send({ type: 'register_tools', tools: [source] });
+  fixture.send({ type: 'prompt', id: 'race', message: 'Use fixture source', systemPrompt: 'Use the requested tool.' });
+  await until(() => fixture.messages.some(m => m.type === 'event' && m.event?.type === 'agent_end'), `stale call completes: ${fixture.stderr()}`);
+  expect(fixture.messages.filter(m => m.type === 'tool_execute_request')).toHaveLength(0);
+  expect(JSON.stringify(fixture.requests[1]?.messages)).toContain('no longer enabled');
+}, 20000);
+
+
+integration('a stale tool emitted after source removal never enters host approval', async () => {
+  const source = { name: 'mcp__fixture__late', description: 'Fixture late tool', inputSchema: { type: 'object', properties: {} } };
+  let release: (() => void) | undefined, n = 0;
+  const fixture = await startFixture(() => n++ === 0 ? new Promise<Response>(resolve => { release = () => resolve(sse({ tool: { id: 'late', name: source.name, input: {} } })); }) : sse({ text: 'late tool rejected' }), { managed: false });
+  fixture.send({ type: 'register_tools', tools: [source] });
+  fixture.send({ type: 'prompt', id: 'late', message: 'Use fixture', systemPrompt: 'Use requested tool.' });
+  await until(() => !!release, 'model request starts');
+  fixture.send({ type: 'register_tools', tools: [] }); await wait(50); release!();
+  await until(() => fixture.messages.some(m => m.type === 'event' && m.event?.type === 'agent_end'), `late result: ${fixture.stderr()}`);
+  expect(fixture.messages.filter(m => m.type === 'pre_tool_use_request' && m.toolName === source.name)).toHaveLength(0);
+  expect(fixture.messages.filter(m => m.type === 'tool_execute_request')).toHaveLength(0);
+  expect(JSON.stringify(fixture.requests[1]?.messages)).toContain('no longer enabled');
+}, 20000);

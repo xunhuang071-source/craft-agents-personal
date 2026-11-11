@@ -142,4 +142,13 @@ describe('SourceCredentialManager.prepareOAuth relay wrapping', () => {
     expect(authUrl.searchParams.get('redirect_uri')).toBe('http://localhost:6477/callback');
     expect(authUrl.searchParams.get('state')).toBe(result.state);
   });
+  for (const oauthRelay of [true, false]) {
+    it(`retains requested scopes across relay=${oauthRelay}`, async () => {
+      const result = await credManager.prepareOAuth(createMcpSource({ mcp: { url: 'https://example.com/mcp', authType: 'oauth', oauthRelay, scopes: ['app:read', 'app:write'] } }), { callbackUrl: 'http://localhost:6477/callback' });
+      const url = new URL(result.authUrl);
+      expect(url.searchParams.get('scope')).toBe('app:read app:write');
+      expect(url.searchParams.get('redirect_uri')).toBe(oauthRelay ? OAUTH_RELAY_CALLBACK_URL : 'http://localhost:6477/callback');
+    });
+  }
+
 });

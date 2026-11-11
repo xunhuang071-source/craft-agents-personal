@@ -276,6 +276,9 @@ export interface McpSourceConfig {
    */
   oauthRelay?: boolean;
 
+  /** Explicit OAuth scopes; omitted uses the server defaults. */
+  scopes?: string[];
+
   // === Stdio transport fields ===
   /**
    * Command to spawn for stdio transport.

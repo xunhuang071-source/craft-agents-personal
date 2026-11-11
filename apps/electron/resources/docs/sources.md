@@ -319,6 +319,8 @@ After creating, use `source_oauth_trigger` to authenticate.
 
 If the server only accepts loopback redirect URIs (client registration fails with an error like "only HTTP loopback callbacks"), add `"oauthRelay": false` to the `mcp` block. This skips the hosted OAuth relay and uses the local callback URL directly. Default (unset) uses the relay.
 
+If the MCP server grants narrower default scopes than needed, list its supported scopes in the `mcp` block: `"scopes": ["app:read", "app:write"]`. These are examples, not universal scope names. Re-authenticate that source to request the new scopes; omitted or empty scopes keep server defaults. Existing tokens are not silently granted extra permissions.
+
 **Bearer token authentication:**
 ```json
 {

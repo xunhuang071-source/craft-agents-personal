@@ -30,6 +30,10 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 用户批准局部 renderer 例外，使用 `scripts/personal-build-reading-candidate.mjs VERIFIED_BASE_APP NEW_OUTPUT_DIR NEW_CANDIDATE_VERSION`，以已校验 1.4.0 为输入，只构建 renderer。用户已安装验收 1.4.1-rc.1 并批准正式公开发布为 1.4.1；该版本为当前冻结基线，晋升不重建程序。`personal-audit-candidate.py --scope diagram-reading` 要求其他程序资源原字节保持一致。[本次修改与测试](READING-GESTURES-REVIEW.md)
 
+## 数据源能力候选（2026-11-11）
+
+用户批准 scopes 和源关闭工具同步。使用 `scripts/personal-build-source-sync-candidate.mjs VERIFIED_1_4_1_APP NEW_OUTPUT_DIR VERSION`，定向构建 main 和标准 Pi，并更新 sources.md；source-sync 全文件审计禁止其余资源漂移。依赖锁不变，Pi 仍为 1.4.0。分支修复明确排除，关闭动作通过公开活动工具 API 避免会话重建。候选 1.5.0-rc.1 不自动安装/发布。[说明](SOURCE-SYNC-REVIEW.md)
+
 ## 最小构建
 
 当前 wallee-v1.4.1 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
