@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "wallee-v1.4.0",
+  "version": "wallee-v1.4.1",
   "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
@@ -18,7 +18,7 @@
     "standardPiSha256": "90bff5453e4c18bacf84d63b5d489aa054b53d218af18c6257562c77174d54cb"
   },
   "frozen": {
-    "rendererTreeSha256": "794d4881cb7e73ead33ab215ffde4ecc8c1fa8b6d6a830fc15aec5eb025fb372",
+    "rendererTreeSha256": "af576aed63123f7d89191b27660c554f2f5d9a9ec7e20b482c3396eb902dd2a3",
     "infoPlistSha256": "23f4b5895fbad9212625548867e7b120557536d2e56b24fe96a9ad65419b2dc1",
     "files": {
       "Contents/Resources/app/dist/bootstrap-preload.cjs": "146938120e9b481540b4eee7c023fe26a743261fae59000fa19aba4a9d8af5e1",
@@ -29,8 +29,8 @@
   },
   "frozenBaseAsset": {
     "repository": "xunhuang071-source/craft-agents-personal",
-    "tag": "wallee-v1.4.0",
-    "asset": "Craft-Agents-wallee-v1.4.0-mac-arm64.zip",
+    "tag": "wallee-v1.4.1",
+    "asset": "Craft-Agents-wallee-v1.4.1-mac-arm64.zip",
     "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
   },
   "officialAutomaticUpdates": false,
@@ -50,21 +50,21 @@
     }
   },
   "previousAcceptance": {
-    "version": "wallee-v1.3.0",
-    "candidateVersion": "wallee-v1.3.0-rc.1",
-    "date": "2026-11-11",
-    "installedByUser": true,
-    "manualConversationCheck": "passed",
-    "installedInventoryMatchesCandidate": true,
-    "codeChangedAfterAcceptance": false,
-    "publicationAuthorizedByUser": true
-  },
-  "acceptance": {
     "version": "wallee-v1.4.0",
     "candidateVersion": "wallee-v1.4.0-rc.1",
     "date": "2026-11-11",
     "installedByUser": true,
     "manualReviewWorkbenchCheck": "accepted",
+    "installedInventoryMatchesCandidate": true,
+    "codeChangedAfterAcceptance": false,
+    "publicationAuthorizedByUser": true
+  },
+  "acceptance": {
+    "version": "wallee-v1.4.1",
+    "candidateVersion": "wallee-v1.4.1-rc.1",
+    "date": "2026-11-11",
+    "installedByUser": true,
+    "manualReadingAndGestureCheck": "accepted",
     "installedInventoryMatchesCandidate": true,
     "codeChangedAfterAcceptance": false,
     "publicationAuthorizedByUser": true
@@ -104,6 +104,16 @@
     "authorizedByUser": "2026-11-11",
     "scope": "this repository, its release history and code-only distribution artifacts",
     "officialActionsEnabled": false,
-    "userProfileIncluded": false
+    "userProfileIncluded": false,
+    "latestAuthorizedRelease": "wallee-v1.4.1"
+  },
+  "readingUpdate": {
+    "baselineVersion": "wallee-v1.4.0",
+    "scope": "inline Mermaid sizing and shared image/diagram preview gestures",
+    "renderer": "pele@1.12.0",
+    "installedAutomatically": false,
+    "buildScript": "scripts/personal-build-reading-candidate.mjs",
+    "compiledRendererSourceCommit": "2a1ec12c0c46a60fe848c8a23a0557c0d77365a9",
+    "releasedIn": "wallee-v1.4.1"
   }
 }

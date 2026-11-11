@@ -26,17 +26,17 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 从指定 Release 下载 `personal-release.json` 所列的冻结基础包及 SHA256SUMS；验证完整包的 SHA256 后解压。基础包保存冻结的 UI、旧 Pi、preload、外部 SDK、Electron 和运行资源，不包含用户数据。不要改用纯净官方 0.14.1 包替代这些个人资源。
 
-## 阅读字号与手势候选（2026-11-11）
+## 阅读字号与手势（2026-11-11，正式版 1.4.1）
 
-用户批准局部 renderer 例外，使用 `scripts/personal-build-reading-candidate.mjs VERIFIED_BASE_APP NEW_OUTPUT_DIR NEW_CANDIDATE_VERSION`，以已校验 1.4.0 为输入，只构建 renderer。候选 1.4.1-rc.1 需由用户安装验收，正式锁仍为 1.4.0。`personal-audit-candidate.py --scope diagram-reading` 要求其他程序资源原字节保持一致。[本次修改与测试](READING-GESTURES-REVIEW.md)
+用户批准局部 renderer 例外，使用 `scripts/personal-build-reading-candidate.mjs VERIFIED_BASE_APP NEW_OUTPUT_DIR NEW_CANDIDATE_VERSION`，以已校验 1.4.0 为输入，只构建 renderer。用户已安装验收 1.4.1-rc.1 并批准正式公开发布为 1.4.1；该版本为当前冻结基线，晋升不重建程序。`personal-audit-candidate.py --scope diagram-reading` 要求其他程序资源原字节保持一致。[本次修改与测试](READING-GESTURES-REVIEW.md)
 
 ## 最小构建
 
-当前 wallee-v1.4.0 以已验收应用作为冻结基线，定向编译主进程并打包工作台。未来获批改动使用新的候选号和输出目录：
+当前 wallee-v1.4.1 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
 
 ```sh
 npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional
-node scripts/personal-build-visual-review.mjs '/path/to/verified-wallee-v1.4.0/Craft Agents.app' "$PWD/native-artifacts/new-review-candidate" 'wallee-v1.5.0-rc.1'
+node scripts/personal-build-visual-review.mjs '/path/to/verified-wallee-v1.4.1/Craft Agents.app' "$PWD/native-artifacts/new-review-candidate" 'wallee-v1.5.0-rc.1'
 ```
 
 第三个参数必须是新的候选号，示例不代表已批准 1.5.0 的功能或发布。历史版本可在对应不可变标签下复现原有构建脚本。
