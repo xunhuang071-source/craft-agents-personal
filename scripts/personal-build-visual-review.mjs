@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import crypto from 'node:crypto';
+import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const [baseArg,outArg]=process.argv.slice(2);
+if(!baseArg||!outArg)throw Error('Usage: node scripts/personal-build-visual-review.mjs BASE_APP NEW_OUTPUT_DIRECTORY');
+const base=fs.realpathSync(baseArg),out=path.resolve(outArg);
+if(fs.existsSync(out))throw Error('Choose a fresh output directory');
+const parent=fs.realpathSync(path.dirname(out));
+if(parent==='/Applications'||parent.startsWith('/Applications/')||parent===base||parent.startsWith(base+path.sep))throw Error('Output must be outside Applications and the baseline app');
+const baselinePath=path.join(root,'personal-release.json'),baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8'));
+if(baseline.version!=='wallee-v1.3.0')throw Error('This build is based on the verified wallee-v1.3.0 line');
+const version='wallee-v1.4.0-rc.1',runtime='Contents/Resources/app',main=`${runtime}/dist/main.cjs`;
+const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'craft-review-build-'));
+const env={HOME:fixture,USERPROFILE:fixture,CRAFT_CONFIG_DIR:path.join(fixture,'config'),PATH:'/usr/bin:/bin:/usr/sbin:/sbin',TMPDIR:os.tmpdir()};
+const hash=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function run(command,args){const r=spawnSync(command,args,{cwd:root,env,encoding:'utf8',maxBuffer:32*1024*1024});if(r.error||r.status!==0)throw Error(`${path.basename(command)}: ${r.error||r.stderr||r.stdout}`);return r.stdout.trim();}
+try{
+ const esbuild=path.join(root,'node_modules/.bin/esbuild');
+ if(run(esbuild,['--version'])!==baseline.build.esbuild)throw Error('Use the pinned esbuild');
+ const baseInventory=path.join(fixture,'base-inventory.json');
+ run('/usr/bin/python3',['scripts/personal-app-inventory.py','--app',base,'--lock',baselinePath,'--output',baseInventory]);
+ const bundle=path.join(fixture,'main.cjs');
+ const defines=['SLACK_OAUTH_CLIENT_ID','SLACK_OAUTH_CLIENT_SECRET','MICROSOFT_OAUTH_CLIENT_ID','MICROSOFT_OAUTH_CLIENT_SECRET','SENTRY_ELECTRON_INGEST_URL','CRAFT_DEV_RUNTIME'].map(k=>`--define:process.env.${k}=""`);
+ run(esbuild,['apps/electron/src/main/index.ts','--bundle','--platform=node','--format=cjs',`--outfile=${bundle}`,'--external:electron','--alias:node-fetch=./apps/electron/src/main/shims/node-fetch.cjs','--alias:abort-controller=./apps/electron/src/main/shims/abort-controller.cjs',...defines]);
+ const resourceOutput=path.join(fixture,'visual-review');
+ run(process.execPath,['extensions/visual-review/build.mjs',resourceOutput]);
+ fs.mkdirSync(out);
+ const app=path.join(out,'Craft Agents.app');
+ fs.cpSync(base,app,{recursive:true,preserveTimestamps:true,verbatimSymlinks:true,filter:source=>path.relative(base,source)!==main});
+ fs.copyFileSync(bundle,path.join(app,main));
+ const destination=path.join(app,runtime,'dist/resources/visual-review');
+ fs.cpSync(resourceOutput,destination,{recursive:true});
+ fs.copyFileSync(path.join(root,'extensions/visual-review/BUNDLED-GUIDE.md'),path.join(app,runtime,'dist/resources/docs/visual-review.md'));
+ run('/usr/bin/codesign',['--force','--deep','--sign','-','--preserve-metadata=entitlements,requirements,flags,runtime',app]);
+ run('/usr/bin/codesign',['--verify','--deep','--strict',app]);
+ const module=JSON.parse(fs.readFileSync(path.join(destination,'module-manifest.json'),'utf8'));
+ const mainSha256=hash(path.join(app,main));
+ const lock={...baseline,version,expectedBuild:{...baseline.expectedBuild,mainSha256},visualReview:{version:module.version,feedbackSchemaVersion:module.feedbackSchemaVersion,moduleManifestSha256:hash(path.join(destination,'module-manifest.json'))}};
+ const lockPath=path.join(out,'component-lock.json');fs.writeFileSync(lockPath,JSON.stringify(lock,null,2)+'\n');
+ const inventory=path.join(out,'application-files.json');
+ run('/usr/bin/python3',['scripts/personal-app-inventory.py','--app',app,'--lock',lockPath,'--output',inventory]);
+ fs.copyFileSync(baseInventory,path.join(out,'baseline-application-files.json'));
+ run('/usr/bin/python3',['scripts/personal-audit-candidate.py','--base-app',base,'--app',app,'--baseline-inventory',baseInventory,'--inventory',inventory,'--out',out,'--scope','visual-review']);
+ const manifest={schemaVersion:1,version,baselineVersion:baseline.version,mainSha256,visualReview:lock.visualReview,sourceCommit:run('/usr/bin/git',['rev-parse','HEAD']),sourceDirty:!!run('/usr/bin/git',['status','--porcelain']),installed:false,published:false};
+ fs.writeFileSync(path.join(out,'candidate-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+ console.log(app);
+}finally{fs.rmSync(fixture,{recursive:true,force:true});}

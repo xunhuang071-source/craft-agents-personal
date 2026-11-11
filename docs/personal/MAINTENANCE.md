@@ -77,6 +77,10 @@ bash scripts/build-native-antigravity-release.sh
 9. 用户自行退出应用、拖入覆盖、打开验收。程序回退只换代码；涉及数据格式迁移时先单独报批。
 10. 远端包确认完整后清理重复安装包、临时编译与测试产物；不清理真实账户/对话、唯一源码或其他日期的历史资料。
 
+## 内置批注工作台候选（2026-11-11）
+
+用户批准随个人版一起打包，候选为 wallee-v1.4.0-rc.1。采用 `scripts/personal-build-visual-review.mjs BASE_APP NEW_OUTPUT_DIR`，输入为已校验 wallee-v1.3.0 应用。只重建主进程并新增版本化工作台资源及指南，不运行通用 Electron 构建。先按 `extensions/visual-review/package-lock.json` 安装模块依赖，再执行构建与隔离测试；使用 `personal-audit-candidate.py --scope visual-review` 核对全文件变化。源码与方法见 [VISUAL-REVIEW-REVIEW.md](VISUAL-REVIEW-REVIEW.md)。候选不得自动覆盖正在使用的程序；安装和正式发布仍由用户决定。
+
 ## 上游与技能
 
 官方仓库仅作为参考来源。用户没要求，不主动追版本；不自动合并或推送官方仓库。不恢复 app-update.yml。继承的自动化模板保存在 docs/upstream-workflows，不放在活动的 .github/workflows 目录；Actions 保持禁用，普通发布不要求扩大 workflow 授权。

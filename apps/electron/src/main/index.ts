@@ -3,7 +3,9 @@
 import { loadShellEnv } from './shell-env'
 loadShellEnv()
 
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, shell, utilityProcess } from 'electron'
+import { VisualReviewHost } from './visual-review-host'
+let visualReviewHost: VisualReviewHost | null = null
 import { createHash, randomUUID } from 'crypto'
 import { hostname, homedir } from 'os'
 import * as Sentry from '@sentry/electron/main'
@@ -378,6 +380,23 @@ app.whenReady().then(async () => {
   // Register bundled assets root so all seeding functions can find their files
   // (docs, permissions, themes, tool-icons resolve via getBundledAssetsDir)
   setBundledAssetsRoot(__dirname)
+
+  // Versioned local review resources are shipped with the personal distribution.
+  // The broker is cheap; actual review workers start only when the agent opens files.
+  const reviewResources = join(__dirname, 'resources', 'visual-review')
+  if (existsSync(join(reviewResources, 'server.cjs'))) {
+    visualReviewHost = new VisualReviewHost({
+      configDirectory: CONFIG_DIR,
+      resourcesDirectory: reviewResources,
+      version: '0.1.0',
+      spawnWorker: (entry, args) => utilityProcess.fork(entry, args, {
+        stdio: 'pipe', serviceName: 'Craft Visual Review',
+        env: { PATH: '/usr/bin:/bin', TMPDIR: process.env.TMPDIR || '/tmp', CRAFT_VISUAL_REVIEW_BUNDLED: '1' },
+      }),
+    })
+    try { await visualReviewHost.start() }
+    catch (error) { visualReviewHost.stop(); visualReviewHost = null; mainLog.error('[visual-review] startup failed', error) }
+  }
 
   // Initialize backend runtime bootstrapping (Codex vendor root, Claude SDK runtime paths).
   initializeBackendHostRuntime({
@@ -1223,6 +1242,7 @@ async function performQuitCleanup(): Promise<void> {
     return
   }
   quitCleanupRan = true
+  visualReviewHost?.stop()
 
   if (sessionManager) {
     try {
@@ -1313,6 +1333,8 @@ app.on('before-quit', async (event) => {
     app.exit(0)
   }
 })
+
+app.on('will-quit', () => visualReviewHost?.stop())
 
 // Handle uncaught exceptions — forward to Sentry explicitly since registering
 // a custom handler can interfere with @sentry/electron's automatic capture.
