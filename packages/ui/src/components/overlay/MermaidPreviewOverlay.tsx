@@ -21,13 +21,13 @@ export interface MermaidPreviewOverlayProps {
 }
 export function MermaidPreviewOverlay({ isOpen, onClose, code, annotationHost, diagramElement }: MermaidPreviewOverlayProps) {
   const { t } = useTranslation()
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [container, setContainer] = React.useState<HTMLDivElement | null>(null)
   const id = `diagram-preview-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const result = React.useMemo(() => isOpen ? renderMermaidDiagram(code, id) : null, [code, id, isOpen])
   const {
     scale, translate, isDragging, isAnimating, setIsAnimating,
     zoomByStep, zoomToPreset, zoomToFit, reset, onMouseDown, onDoubleClick,
-  } = useRichBlockInteractions({ isOpen, containerRef, selectableText: true })
+  } = useRichBlockInteractions({ isOpen, container, selectableText: true })
   const sourceBlock = diagramElement?.closest<HTMLElement>('[data-ca-block-type="mermaid"]')
   const annotations = React.useMemo(() => diagramAnnotationsForView(
     annotationHost?.sourceRootRef.current ?? null, diagramElement ?? null, annotationHost?.annotations,
@@ -58,7 +58,7 @@ export function MermaidPreviewOverlay({ isOpen, onClose, code, annotationHost, d
       <CopyButton content={code} title={t('common.copyCode')} className="bg-background shadow-minimal opacity-70 hover:opacity-100" />
     </div>}
   >
-    <div ref={containerRef} data-ca-diagram-viewport="true" onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}
+    <div ref={setContainer} data-ca-diagram-viewport="true" onMouseDown={onMouseDown} onDoubleClick={onDoubleClick}
       style={{ height: 'calc(100vh - 120px)', minHeight: 200, position: 'relative', width: '100%', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}>
       {annotationHost ? <AnnotatableMarkdownDocument content={code} messageId={annotationHost.messageId}
         sessionId={annotationHost.sessionId} annotations={annotations} sendMessageKey={annotationHost.sendMessageKey}

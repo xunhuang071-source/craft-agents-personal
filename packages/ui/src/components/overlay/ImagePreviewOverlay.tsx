@@ -51,7 +51,7 @@ export function ImagePreviewOverlay({
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [container, setContainer] = React.useState<HTMLDivElement | null>(null)
 
   const {
     scale,
@@ -67,7 +67,7 @@ export function ImagePreviewOverlay({
     onDoubleClick,
   } = useRichBlockInteractions({
     isOpen,
-    containerRef,
+    container,
   })
 
   const activeItem = resolvedItems[activeIdx]
@@ -164,7 +164,8 @@ export function ImagePreviewOverlay({
       headerActions={headerActions}
     >
       <div
-        ref={containerRef}
+        ref={setContainer}
+        data-ca-image-viewport="true"
         className="min-h-full flex items-center justify-center p-4 select-none"
         onMouseDown={onMouseDown}
         onDoubleClick={onDoubleClick}

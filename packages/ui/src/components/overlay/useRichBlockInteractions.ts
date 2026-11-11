@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { RICH_BLOCK_DEFAULTS, type RichBlockInteractionOptions } from './rich-block-interaction-spec'
 
 export function clampScale(value: number, min: number, max: number): number {
@@ -33,14 +33,15 @@ export function computeFitScale(
 }
 
 interface UseRichBlockInteractionsOptions extends RichBlockInteractionOptions {
-  containerRef: RefObject<HTMLDivElement | null>
+  /** Actual mounted viewport, including delayed portal mounts. */
+  container: HTMLDivElement | null
   /** Diagram labels remain selectable; blank space and Alt/middle drag pan. */
   selectableText?: boolean
 }
 
 export function useRichBlockInteractions({
   isOpen,
-  containerRef,
+  container,
   minScale = RICH_BLOCK_DEFAULTS.minScale,
   maxScale = RICH_BLOCK_DEFAULTS.maxScale,
   zoomStepFactor = RICH_BLOCK_DEFAULTS.zoomStepFactor,
@@ -80,7 +81,6 @@ export function useRichBlockInteractions({
   }, [minScale, maxScale])
 
   const zoomToFit = useCallback((content: { width: number; height: number } | null) => {
-    const container = containerRef.current
     if (!container || !content) {
       reset()
       return
@@ -91,7 +91,7 @@ export function useRichBlockInteractions({
     setIsAnimating(true)
     setScale(fit)
     setTranslate({ x: 0, y: 0 })
-  }, [containerRef, minScale, maxScale, reset])
+  }, [container, minScale, maxScale, reset])
 
   const onMouseDown = useCallback((e: ReactMouseEvent) => {
     if (e.button !== 0 && e.button !== 1) return
@@ -141,7 +141,6 @@ export function useRichBlockInteractions({
   }, [])
 
   useEffect(() => {
-    const container = containerRef.current
     if (!isOpen || !container) return
 
     const handleWheel = (e: WheelEvent) => {
@@ -155,8 +154,14 @@ export function useRichBlockInteractions({
         y: e.clientY - rect.top - rect.height / 2,
       }
 
-      const sensitivity = e.ctrlKey ? wheelSensitivity.trackpadPinch : wheelSensitivity.mouse
-      const factor = Math.pow(2, -e.deltaY * sensitivity)
+      // Chromium delivers trackpad pinch as ctrl+wheel. Ordinary two-finger
+      // scrolling pans the viewport, including horizontal movement.
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rect.height : 1
+      if (!e.ctrlKey && !e.metaKey) {
+        setTranslate(t => ({ x: t.x - e.deltaX * unit, y: t.y - e.deltaY * unit }))
+        return
+      }
+      const factor = Math.pow(2, -e.deltaY * unit * wheelSensitivity.trackpadPinch)
 
       setScale(prev => {
         const next = clampScale(prev * factor, minScale, maxScale)
@@ -168,7 +173,7 @@ export function useRichBlockInteractions({
 
     container.addEventListener('wheel', handleWheel, { passive: false })
     return () => container.removeEventListener('wheel', handleWheel)
-  }, [isOpen, containerRef, minScale, maxScale, wheelSensitivity])
+  }, [isOpen, container, minScale, maxScale, wheelSensitivity])
 
   useEffect(() => {
     if (!isOpen || !keyboardShortcuts) return
