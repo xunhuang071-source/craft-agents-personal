@@ -352,3 +352,59 @@ describe('upgradePromptCacheTtl', () => {
     expect((body.tools as any[])[0].cache_control).toEqual({ type: 'ephemeral' });
   });
 });
+
+
+// OSS #1134: metadata fields are declared properties, so strict tools must keep
+// their original additionalProperties constraint in both OpenAI wire formats.
+describe('OpenAI adapter schema constraints', () => {
+  let adapters: Array<{ addMetadataToTools(body: Record<string, unknown>): Record<string, unknown> }>;
+  let configFile: string;
+  let originalConfig: string | null;
+  beforeAll(async () => {
+    process.env.CRAFT_INTERCEPTOR_DISABLE_AUTO_INSTALL = '1';
+    const mod = await import('../unified-network-interceptor.ts');
+    const common = await import('../interceptor-common.ts');
+    adapters = [mod.openAiAdapter, mod.openAiResponsesAdapter];
+    configFile = common.CONFIG_FILE;
+    mkdirSync(require('node:path').dirname(configFile), { recursive: true });
+  });
+  beforeEach(() => {
+    try { originalConfig = require('node:fs').readFileSync(configFile, 'utf8'); }
+    catch { originalConfig = null; }
+  });
+  afterEach(() => {
+    if (originalConfig === null) { try { unlinkSync(configFile); } catch {} }
+    else writeFileSync(configFile, originalConfig);
+    _resetConfigCacheForTesting();
+  });
+  for (const api of ['chat', 'responses'] as const) {
+    for (const rich of [true, false]) {
+      for (const name of ['read', 'mcp__files__read']) {
+        for (const strict of [true, false]) {
+          for (const sent of strict ? [false] : [undefined, true, false]) {
+            it(`${api} rich=${rich} ${name} strict=${strict} additionalProperties=${sent}`, () => {
+              writeFileSync(configFile, JSON.stringify({ richToolDescriptions: rich }));
+              _resetConfigCacheForTesting();
+              const schema = { type: 'object', properties: { path: { type: 'string' } }, required: ['path'],
+                ...(sent === undefined ? {} : { additionalProperties: sent }) };
+              const tool = api === 'chat'
+                ? { type: 'function', function: { name, strict, parameters: schema } }
+                : { type: 'function', name, strict, parameters: schema };
+              const body = { tools: [tool] };
+              const adapter = adapters[api === 'chat' ? 0 : 1]!;
+              adapter.addMetadataToTools(body);
+              expect(schema.additionalProperties).toBe(sent);
+              expect('additionalProperties' in schema).toBe(sent !== undefined);
+              const shouldInject = rich || name.startsWith('mcp__');
+              expect(Object.keys(schema.properties)).toEqual(shouldInject ? ['_displayName', '_intent', 'path'] : ['path']);
+              expect(schema.required).toEqual(shouldInject ? ['_displayName', '_intent', 'path'] : ['path']);
+              expect(schema.properties.path).toEqual({ type: 'string' });
+              adapter.addMetadataToTools(body);
+              expect(schema.required).toEqual(shouldInject ? ['_displayName', '_intent', 'path'] : ['path']);
+            });
+          }
+        }
+      }
+    }
+  }
+});
