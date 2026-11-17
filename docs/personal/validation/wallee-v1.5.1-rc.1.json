@@ -1,0 +1,211 @@
+{
+  "version": "wallee-v1.5.1-rc.1",
+  "date": "2026-11-17",
+  "sourceCommit": "6952a80044a8ce39d2b7eafe6c2635a7def1dfdd",
+  "sourceDirtyAtBuild": false,
+  "suites": [
+    {
+      "file": "packages/shared/src/__tests__/interceptor-packaging-contract.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.schema.test.ts",
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/interceptor-common.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.validation.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.relay-sse.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/interceptor-request-utils.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.sse.test.ts",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.curl.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor-hints.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/__tests__/unified-network-interceptor.responses-repair.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/prompts/__tests__/developer-context.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/prompts/__tests__/context-files.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/prompts/__tests__/system.test.ts",
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/pi-agent-server/src/system-prompt-override.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/pi-agent-server/src/proxy-tool-sync.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/pi-agent-server/src/compaction-wait.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/agent/__tests__/pi-browser-tool-toggle.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/sources/__tests__/oauth-failure-preserves.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/sources/__tests__/mcp-scopes-config.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/auth/__tests__/oauth-scopes-desktop.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/auth/__tests__/oauth.test.ts",
+      "passed": 83,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/shared/src/sources/__tests__/oauth-relay.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "packages/server-core/src/sources/mcp-source-tool-callbacks.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "candidate-openai-integration",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "candidate-standard-pi-integration",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 4
+    }
+  ],
+  "passed": 287,
+  "failed": 0,
+  "skipped": 4,
+  "skippedScope": "2 retired managed-only 429 cases; 2 legacy 1.1/1.4 history cases without a legacy bundle",
+  "types": {
+    "serverCore": "pass",
+    "electron": "pass",
+    "piProduction": "pass",
+    "newIntegrationTests": "pass",
+    "shared": "3 pre-existing diagnostics, identical to f2dbe262 baseline"
+  },
+  "scanMeasurement": [
+    {
+      "options": {
+        "maxDirs": 50,
+        "budgetMs": 10000
+      },
+      "files": [
+        "AGENTS.md"
+      ],
+      "dirsRead": 50,
+      "truncated": true,
+      "elapsedMs": 4.112041999999974
+    },
+    {
+      "options": {
+        "budgetMs": 10000
+      },
+      "files": [
+        "AGENTS.md"
+      ],
+      "dirsRead": 4000,
+      "truncated": true,
+      "elapsedMs": 57.801166999999964
+    },
+    {
+      "options": {},
+      "files": [
+        "AGENTS.md"
+      ],
+      "dirsRead": 4000,
+      "truncated": true,
+      "elapsedMs": 57.056708000000015
+    }
+  ],
+  "signatureVerified": true,
+  "zipExtractInventoryMatches": true,
+  "unexpectedComponentChanges": [],
+  "liveAccountsTested": false,
+  "installed": false,
+  "published": false,
+  "archiveSha256": "dcb686fce8091bf3d2038f27232d686b06ef4b3438697ad8053f38acef3aac49",
+  "archiveBytes": 193237553
+}

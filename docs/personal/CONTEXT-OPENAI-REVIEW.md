@@ -59,3 +59,17 @@ CRAFT_INTERCEPTOR_TEST_BUNDLE='/path/to/candidate/Craft Agents.app/Contents/Reso
 如需回退，只恢复 wallee-v1.5.0 程序代码，不回灌旧 profile 或历史对话。本次没有数据格式迁移。候选不会自行安装或发布。
 
 候选的最终哈希、全文件差异、签名、ZIP 解压复验和测试统计记录在同目录版本清单及 native-artifacts 的候选审计附件中。
+
+
+## 候选最终结果
+
+- 产品源码提交为 `6952a80044a8ce39d2b7eafe6c2635a7def1dfdd`，构建时工作树干净。
+- 共 287 项测试通过、0 失败、4 跳过。跳过为两个已退役 managed 专用 429 场景及两个未提供旧版 bundle 的历史双向兼容场景，不计入通过。
+- 候选 1,741 个文件和 14 个符号链接通过组件锁、签名和 ZIP 解压复验，解压清单与打包前完全一致。
+- 仅 main、interceptor、CodeResources 与可执行文件签名区发生变化，没有新增或删除应用文件。可执行代码在签名区之前保持一致。
+- 文本与代码扫描覆盖 1,443 个文件，无未审查发现。唯一匹配为既有 renderer source map 中文档 URL，沿用绑定文件哈希和值摘要的单项误报记录。
+- ZIP 大小为 193,237,553 字节，SHA256 为 `dcb686fce8091bf3d2038f27232d686b06ef4b3438697ad8053f38acef3aac49`。
+- main SHA256 为 `b98a6cd9e21342e47b3e71e978e74af2ff53ad33ce8fc172929cca8514cacc88`。
+- 标准 Pi SHA256 保持 `a24f85daf9df5dcb6bc39024d8093c42891b050552958f8194f93c66d76ec698`。
+- 候选锁保存为 `docs/personal/baselines/wallee-v1.5.1-rc.1.json`，根 personal-release.json 继续指向已验收正式版 1.5.0。
+- 未安装、未启动候选、未推送或发布，没有修改真实 profile。

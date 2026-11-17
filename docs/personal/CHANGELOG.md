@@ -7,7 +7,7 @@
 - 定点移植 v0.15.10 的规则扫描修复。只检查 Git 祖先链和所选子树，采用六层、4,000 目录与循环时间预算，保留提示词清洗和个人版工作区 AGENTS 注入。
 - 两个 OpenAI API 注入工具元数据后保留 additionalProperties 原值，恢复严格工具要求的 false，避免请求因 schema 被拒绝。
 - 仅重建 main 与 interceptor。标准 Pi SDK 1.4.0、数据源同步、renderer、preload、sources 指南和批注工作台保持基线。
-- 271 项针对性回归通过。server-core、Electron、Pi 标准类型检查通过。shared 三处既有诊断已在原始基线复现，无新增诊断。编译产物及候选审计结果见 [验收说明](CONTEXT-OPENAI-REVIEW.md)。
+- 271 项针对性回归与 16 项候选产物测试通过，另有 4 项按范围跳过。server-core、Electron、Pi 标准类型检查通过。shared 三处既有诊断已在原始基线复现，无新增诊断。编译产物及候选审计结果见 [验收说明](CONTEXT-OPENAI-REVIEW.md)。
 - 候选不自动安装或发布，正式版仍为 wallee-v1.5.0。
 
 ## wallee-v1.5.0 — 2026-11-11
