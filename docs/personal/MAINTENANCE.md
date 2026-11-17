@@ -34,13 +34,13 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 用户批准 scopes 和源关闭工具同步。使用 `scripts/personal-build-source-sync-candidate.mjs VERIFIED_1_4_1_APP NEW_OUTPUT_DIR VERSION`，定向构建 main 和标准 Pi，并更新 sources.md；source-sync 全文件审计禁止其余资源漂移。依赖锁不变，Pi 仍为 1.4.0。分支修复明确排除，关闭动作通过公开活动工具 API 避免会话重建。候选 1.5.0-rc.1 已由用户安装验收，随后批准按原字节晋升公开正式版 1.5.0；以该正式版作为后续冻结基线。[说明](SOURCE-SYNC-REVIEW.md)
 
-## 规则扫描与 OpenAI 工具约束候选
+## 规则扫描与 OpenAI 工具约束
 
-2026-11-17 用户批准从官方 v0.15.10 定点移植两项修复。本地候选为 wallee-v1.5.1-rc.1，正式版继续为 wallee-v1.5.0。使用 `scripts/personal-build-context-openai-candidate.mjs VERIFIED_1_5_0_APP NEW_OUTPUT_DIR VERSION`，不可变输入锁为 `docs/personal/baselines/wallee-v1.5.0.json`。仅重建 main 与 interceptor，使用 `context-openai` 范围全文件审计。Pi、界面、preload、sources 指南和工作台保持原字节。详见 [本次验收说明](CONTEXT-OPENAI-REVIEW.md)。候选安装与发布由用户决定。
+2026-11-17 用户批准从官方 v0.15.10 定点移植两项修复。用户已安装候选 wallee-v1.5.1-rc.1，并批准按原字节晋升公开正式版 wallee-v1.5.1。使用 `scripts/personal-build-context-openai-candidate.mjs VERIFIED_1_5_0_APP NEW_OUTPUT_DIR VERSION`，不可变输入锁为 `docs/personal/baselines/wallee-v1.5.0.json`。仅重建 main 与 interceptor，使用 `context-openai` 范围全文件审计。Pi、界面、preload、sources 指南和工作台保持原字节。详见 [本次验收说明](CONTEXT-OPENAI-REVIEW.md)。本次晋升只更新元数据，不重建、重新签名或再次安装。
 
 ## 最小构建
 
-当前 wallee-v1.5.0 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
+当前 wallee-v1.5.1 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
 
 ```sh
 npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional

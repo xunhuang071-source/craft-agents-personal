@@ -1,6 +1,6 @@
 # wallee-v1.5.1 候选　规则扫描与 OpenAI 工具约束
 
-事项日期 2026-11-17。用户批准两项上游修复的定点移植及本地候选构建。当前正式版仍为 wallee-v1.5.0，候选为 wallee-v1.5.1-rc.1。安装、正式晋升及发布待用户后续决定。
+事项日期 2026-11-17。用户批准两项上游修复的定点移植及本地候选构建。原候选为 wallee-v1.5.1-rc.1，现已由用户安装并批准晋升正式版 wallee-v1.5.1。候选阶段的记录保留在下文，正式晋升记录见文末。
 
 ## 来源和改造
 
@@ -73,3 +73,12 @@ CRAFT_INTERCEPTOR_TEST_BUNDLE='/path/to/candidate/Craft Agents.app/Contents/Reso
 - 标准 Pi SHA256 保持 `a24f85daf9df5dcb6bc39024d8093c42891b050552958f8194f93c66d76ec698`。
 - 候选锁保存为 `docs/personal/baselines/wallee-v1.5.1-rc.1.json`，根 personal-release.json 继续指向已验收正式版 1.5.0。
 - 未安装、未启动候选、未推送或发布，没有修改真实 profile。
+
+
+## 2026-11-17 正式晋升
+
+用户确认已安装更新包，批准发布和版本管理。使用候选组件锁检查 Applications 中的应用，1,741 个文件、14 个符号链接、组件哈希和签名与候选完全一致。
+
+按原字节晋升为 wallee-v1.5.1，ZIP 仅改发布文件名，SHA256 不变。正式锁保存为 `docs/personal/baselines/wallee-v1.5.1.json` 并同步根 personal-release.json。未重建、重新签名或重复安装。历史候选和 1.5.0 基线保持原样。
+
+本次授权包含向现有公开仓库 main 推送、创建不可变正式标签和发布代码资产。Actions 与官方自动更新继续关闭。真实账号测试仍未执行，不因用户安装而改写该验证边界。
