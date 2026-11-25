@@ -25,7 +25,7 @@ try{
  const defines=['SLACK_OAUTH_CLIENT_ID','SLACK_OAUTH_CLIENT_SECRET','MICROSOFT_OAUTH_CLIENT_ID','MICROSOFT_OAUTH_CLIENT_SECRET','SENTRY_ELECTRON_INGEST_URL','CRAFT_DEV_RUNTIME'].map(k=>`--define:process.env.${k}=""`)
  run(esbuild,['apps/electron/src/main/index.ts','--bundle','--platform=node','--format=cjs',`--outfile=${main}`,`--metafile=${graph}`,'--external:electron','--alias:node-fetch=./apps/electron/src/main/shims/node-fetch.cjs','--alias:abort-controller=./apps/electron/src/main/shims/abort-controller.cjs',...defines])
  if(/claude-agent-sdk|managed-antigravity|antigravity-(menu|service|controller)/.test(fs.readFileSync(graph,'utf8')))throw Error('Retired runtime in graph')
- fs.mkdirSync(out);fs.cpSync(base,app,{recursive:true,preserveTimestamps:true,verbatimSymlinks:true})
+ fs.mkdirSync(out);run('/usr/bin/ditto',['--norsrc','--noextattr','--noacl',base,app])
  const prefix='Contents/Resources/app'
  fs.copyFileSync(main,path.join(app,prefix,'dist/main.cjs'))
  const lock=structuredClone(baseline);lock.version=version;lock.previousAcceptance=baseline.acceptance;lock.acceptance={version,installedByUser:false,manualReview:'pending',publicationAuthorizedByUser:false};lock.expectedBuild.mainSha256=sha(main)
