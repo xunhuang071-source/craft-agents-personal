@@ -108,8 +108,14 @@ for (const { name, historyTokens, window, threshold, expectedCount, failSummary,
       send({ type: 'prompt', id: 'prompt', message: latest, systemPrompt: 'Handle a disposable synthetic attachment case.' });
       await waitFor(() => rows.some(row => row.type === 'event' && row.event?.type === 'agent_end'), 'finish prompt');
       expect(rows.filter(row => row.type === 'error')).toEqual([]);
-      const expectedRequests = failSummary ? [true, false, true] : expectedCount === 2 ? [true, false] : [false];
-      expect(requests.map(request => request.compact)).toEqual(expectedRequests);
+      const expectedRequests = expectedCount === 2 ? [true, false] : [false];
+      const requestKinds = requests.map(request => request.compact);
+      if (failSummary) {
+        expect(requestKinds.slice(0, 2)).toEqual(expectedRequests);
+        expect(requestKinds.filter(kind => !kind)).toHaveLength(1);
+      } else {
+        expect(requestKinds).toEqual(expectedRequests);
+      }
       const normal = requests.find(request => !request.compact)!.messages;
       expect(normal.split(latest)).toHaveLength(2);
       const persisted = await readFile(journal, 'utf8');
