@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "wallee-v1.5.2",
+  "version": "wallee-v1.5.4",
   "repository": "https://github.com/xunhuang071-source/craft-agents-personal",
   "platform": "darwin-arm64",
   "applicationId": "com.lukilabs.craft-agent",
@@ -14,8 +14,8 @@
     "oauthDefines": "empty; user credentials are never build inputs"
   },
   "expectedBuild": {
-    "mainSha256": "2b1a7bf41d94e9fd27188302507c0e62ad11a84235c66540b4340e7b2a403879",
-    "standardPiSha256": "0fc8383db2d4a542f842eb5eca441c3201bc6e4523b10211b66cfdea80499edc"
+    "mainSha256": "43a4096700994fb51265e484d1b3889bf1d22a2f9efc796271182b06fd58fbad",
+    "standardPiSha256": "adaa7fdecbd183886a2d643f5a71362219da54f4b2a35f9935866c50f1becdf5"
   },
   "frozen": {
     "rendererTreeSha256": "f93236dd6afe9ff613d832a0f66c2ef2fab34232717c41b6ffc70efe5916ac2b",
@@ -24,13 +24,15 @@
       "Contents/Resources/app/dist/bootstrap-preload.cjs": "751f74d2a334b8eb0ca12df98733d73ad7b3a09d22fb35b86e7bfcb0fbb2cdf8",
       "Contents/Resources/app/dist/browser-toolbar-preload.cjs": "5778078b69762ac5edd8af94a820088c1ecfe02b4e26ace134ae6ea3d7a84049",
       "Contents/Resources/app/dist/interceptor.cjs": "6be0e75c93561e565f96a36636a6cf6048206cdb1750e544544060a05015820c",
-      "Contents/Resources/app/dist/resources/docs/sources.md": "52fd72e595b7c3c4bd6d2cd9e9fd36d584154689076bceec45f619dca8713301"
+      "Contents/Resources/app/dist/resources/docs/sources.md": "52fd72e595b7c3c4bd6d2cd9e9fd36d584154689076bceec45f619dca8713301",
+      "Contents/Resources/app/resources/pi-agent-server/image-resize-worker.js": "09d75849b55e2f2b13c9ff81259edfe170efdad01d629549cf2d62de839b1719",
+      "Contents/Resources/app/resources/pi-agent-server/photon_rs_bg.wasm": "10468181565c56004c867f3a4af96f89a0ef5a63a72f2b5fb12c1f1992a3615c"
     }
   },
   "frozenBaseAsset": {
     "repository": "xunhuang071-source/craft-agents-personal",
-    "tag": "wallee-v1.5.2",
-    "asset": "Craft-Agents-wallee-v1.5.2-mac-arm64.zip",
+    "tag": "wallee-v1.5.4",
+    "asset": "Craft-Agents-wallee-v1.5.4-mac-arm64.zip",
     "verification": "Use the SHA256SUMS and release-manifest.json attached to that release before using the extracted app as CRAFT_BASELINE_APP."
   },
   "officialAutomaticUpdates": false,
@@ -50,20 +52,15 @@
     }
   },
   "previousAcceptance": {
-    "version": "wallee-v1.5.1",
-    "candidateVersion": "wallee-v1.5.1-rc.1",
-    "date": "2026-11-17",
-    "installedByUser": true,
-    "manualReview": "accepted for release by user",
-    "installedInventoryMatchesCandidate": true,
-    "codeChangedAfterAcceptance": false,
-    "liveOpenAiAccountTested": false,
-    "publicationAuthorizedByUser": true
-  },
-  "acceptance": {
     "version": "wallee-v1.5.2",
     "installedByUser": true,
     "manualReview": "Installed inventory matches candidate; live Kimi latency and real OAuth reauthorization not rerun",
+    "publicationAuthorizedByUser": true
+  },
+  "acceptance": {
+    "version": "wallee-v1.5.4",
+    "installedByUser": true,
+    "manualReview": "Installed inventory matches candidate; image read confirmed in prior image candidate; live multi-agent collaboration not independently rerun",
     "publicationAuthorizedByUser": true
   },
   "piSdkUpgrade": {
@@ -145,5 +142,13 @@
     "candidateVersion": "wallee-v1.5.2-rc.2",
     "piSdk": "1.4.0",
     "usesConfiguredCompactionWindow": true
+  },
+  "piImageUpdate": {
+    "sourceCommit": "919422683b0caeae20ca80dea77cdcebc3f4682f",
+    "candidateVersion": "wallee-v1.5.3-rc.1"
+  },
+  "messageAdmissionUpdate": {
+    "sourceCommit": "12e6747476540f22d0b517d1d282272e59702b97",
+    "candidateVersion": "wallee-v1.5.4-rc.1"
   }
 }
