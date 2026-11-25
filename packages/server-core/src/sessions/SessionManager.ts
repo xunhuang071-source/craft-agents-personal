@@ -1,6 +1,6 @@
 import type { EventSink, RpcServer } from '@craft-agent/server-core/transport'
 import { CLIENT_BROWSER_INVOKE } from '@craft-agent/server-core/transport'
-import type { ISessionManager, IBrowserPaneManager, ExecutePromptAutomationInput } from '@craft-agent/server-core/handlers'
+import type { ISessionManager, IBrowserPaneManager, ExecutePromptAutomationInput, AdmittedMessage, MessageAdmission } from '@craft-agent/server-core/handlers'
 import { RemoteBrowserPaneManager } from './RemoteBrowserPaneManager'
 import { validateFilePath, getWorkspaceAllowedDirs } from '@craft-agent/server-core/handlers'
 import { createScopedLogger, CONSOLE_LOGGER, type PlatformServices, type Logger } from '@craft-agent/server-core/runtime'
@@ -850,6 +850,12 @@ interface ManagedSession {
     /** Mid-turn messages: the pending continuation check that may set `mergeWith`. */
     continuationCheck?: Promise<void>
   }>
+  /**
+   * Replays of the queue that are due but haven't claimed the session yet (see
+   * `reserveQueueReplay`). While there is one, a message sent to the idle session is queued behind
+   * the queued messages instead of starting a turn ahead of them.
+   */
+  pendingQueueReplays?: number
   // Original host payloads for backends that can return undelivered text steers.
   // Runtime-only; Pi's native steering does not opt into an acknowledgement protocol.
   acceptedSteers?: Map<string, ManagedSession['messageQueue'][number]>
@@ -1169,6 +1175,14 @@ interface PendingDelta {
   turnId?: string
 }
 
+/** A place in a session's admission order (see `SessionManager.sendMessage`). */
+interface AdmissionSlot {
+  /** Resolves once every earlier send to the session is admitted. */
+  ready: Promise<void>
+  /** Lets the next send in (idempotent); it still waits for the earlier sends. */
+  release: () => void
+}
+
 /** Frame an app-generated message the agent receives as a user turn, so it is not mistaken for the user. */
 export function labelSystemNotice(text: string): string {
   return [
@@ -1231,14 +1245,17 @@ export function resolveMidStreamDeliveryOutcome(
  * Whether a mid-stream text message should be steered into the live turn.
  * A manual compaction owns the turn without an agent loop to consume steers,
  * so the message is queued for replay after `complete` instead (OSS #1058).
+ * So is a message that arrives while the agent isn't streaming the turn (its setup, or its end):
+ * redirect() would abort an agent with nothing to abort, and the replay would be told the turn
+ * was interrupted.
  */
 export function shouldAttemptMidStreamSteer(
   behavior: MidStreamBehavior,
   textOnly: boolean,
-  agent: { isCompactionInFlight?: () => boolean } | null | undefined,
+  agent: { isCompactionInFlight?: () => boolean; canSteerNow?: () => boolean } | null | undefined,
 ): boolean {
   if (behavior !== 'steer' || !textOnly || !agent) return false
-  return agent.isCompactionInFlight?.() !== true
+  return agent.isCompactionInFlight?.() !== true && agent.canSteerNow?.() !== false
 }
 
 /**
@@ -1323,6 +1340,11 @@ export class SessionManager implements ISessionManager {
    * subprocess can race the resulting `chat` against the still-pending update.
    */
   private agentRefreshLocks: Map<string, Promise<void>> = new Map()
+  /**
+   * Tail of each session's admission chain: sends to one session are admitted one at a time, each
+   * until it is queued, steered or has started its turn (see `sendMessage`).
+   */
+  private admissionTails: Map<string, Promise<void>> = new Map()
   /** Monotonic clock to ensure strictly increasing message timestamps */
   private lastTimestamp = 0
 
@@ -2590,8 +2612,10 @@ export class SessionManager implements ISessionManager {
           })
         }
         if (!managed.isProcessing && managed.messageQueue.length > 0) {
+          // Due now, so a send that triggered this load is queued behind the recovered messages
+          const releaseReplay = this.reserveQueueReplay(managed)
           setImmediate(() => {
-            this.processNextQueuedMessage(managed.id)
+            this.processNextQueuedMessage(managed.id, releaseReplay)
           })
         }
       }
@@ -3058,10 +3082,12 @@ export class SessionManager implements ISessionManager {
           })
         }
         // Process queue when session becomes active (will be triggered by first message or interaction)
-        // Use setImmediate to avoid blocking the load and allow session state to settle
+        // Use setImmediate to avoid blocking the load and allow session state to settle. Due now, so
+        // a send that triggered this load is queued behind the recovered messages.
         if (!managed.isProcessing && managed.messageQueue.length > 0) {
+          const releaseReplay = this.reserveQueueReplay(managed)
           setImmediate(() => {
-            this.processNextQueuedMessage(managed.id)
+            this.processNextQueuedMessage(managed.id, releaseReplay)
           })
         }
       }
@@ -5060,40 +5086,8 @@ export class SessionManager implements ISessionManager {
 
           return { resolved: null, available }
         },
-        sendAgentMessageFn: async (sessionId: string, message: string, attachments?: Array<{ path: string; name?: string }>) => {
-          // Build FileAttachment[] from paths (same pattern as spawn_session)
-          let fileAttachments: FileAttachment[] | undefined
-          if (attachments?.length) {
-            const builtAttachments: FileAttachment[] = []
-            for (const a of attachments) {
-              try {
-                const extraDirs = getWorkspaceAllowedDirs(managed.workspace.id)
-                const safePath = await validateFilePath(a.path, extraDirs)
-                const attachment = readFileAttachment(safePath)
-                if (attachment) {
-                  if (a.name) attachment.name = a.name
-                  builtAttachments.push(attachment)
-                }
-              } catch (error) {
-                const msg = error instanceof Error ? error.message : String(error)
-                sessionLog.warn(`send_agent_message: blocked attachment path ${a.path}: ${msg}`)
-              }
-            }
-            if (builtAttachments.length > 0) fileAttachments = builtAttachments
-          }
-
-          // Capture the target's busy state BEFORE delivery so the sender gets a
-          // truthful ack. A busy (mid-turn) target queues the message and replays
-          // it after the current turn (anthropic defaults to 'queue'); an idle
-          // target starts processing immediately. sendMessage throws for an
-          // unknown session — that rejection propagates to the handler's catch.
-          const targetBusy = this.sessions.get(sessionId)?.isProcessing === true
-          await this.sendMessage(sessionId, message, fileAttachments)
-          return {
-            delivery: targetBusy ? ('queued' as const) : ('delivered' as const),
-            targetBusy,
-          }
-        },
+        sendAgentMessageFn: (sessionId: string, message: string, attachments?: Array<{ path: string; name?: string }>) =>
+          this.deliverAgentMessage(managed, sessionId, message, attachments),
         activateSourceInSessionFn: async (sourceSlug: string) => {
           const cb = managed.agent?.onSourceActivationRequest
           if (!cb) {
@@ -5454,11 +5448,50 @@ export class SessionManager implements ISessionManager {
   }
 
   /**
+   * `send_agent_message` from the `sender` session: hands the message to the target session and
+   * reports how it was admitted, without waiting for the target's turn (see admitMessage).
+   */
+  private async deliverAgentMessage(
+    sender: ManagedSession,
+    sessionId: string,
+    message: string,
+    attachments?: Array<{ path: string; name?: string }>,
+  ): Promise<{ delivery: MessageAdmission }> {
+    // Build FileAttachment[] from paths (same pattern as spawn_session)
+    let fileAttachments: FileAttachment[] | undefined
+    if (attachments?.length) {
+      const builtAttachments: FileAttachment[] = []
+      for (const a of attachments) {
+        try {
+          const extraDirs = getWorkspaceAllowedDirs(sender.workspace.id)
+          const safePath = await validateFilePath(a.path, extraDirs)
+          const attachment = readFileAttachment(safePath)
+          if (attachment) {
+            if (a.name) attachment.name = a.name
+            builtAttachments.push(attachment)
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error)
+          sessionLog.warn(`send_agent_message: blocked attachment path ${a.path}: ${msg}`)
+        }
+      }
+      if (builtAttachments.length > 0) fileAttachments = builtAttachments
+    }
+
+    // Resolves once the target has admitted the message (started a turn for it, or queued or
+    // steered it into the running one), never after the target's turn: the sender's own turn
+    // must not wait for it (craft-agents-oss#1132). An unknown session rejects, which
+    // propagates to the tool handler's catch.
+    const { outcome } = await this.admitMessage(sessionId, message, fileAttachments)
+    return { delivery: outcome }
+  }
+
+  /**
    * Dispatch a plan approval for a session, equivalent to the desktop
    * "Accept plan" button. Switches the session out of Explore mode (safe)
    * into allow-all (or back to Guarded, see `planExecutionMode`) if needed so the plan can execute without per-tool
-   * prompts, then sends the approval message through the normal sendMessage
-   * path.
+   * prompts, then sends the approval message. Resolves once the message is admitted, not after the
+   * plan has run (the messaging gateway's button handler awaits this, craft-agents-oss#1130).
    */
   async acceptPlan(sessionId: string, _planPath?: string): Promise<void> {
     const managed = this.sessions.get(sessionId)
@@ -6394,6 +6427,18 @@ export class SessionManager implements ISessionManager {
     sessionLog.info(`Deleted session ${sessionId}`)
   }
 
+  /**
+   * Send a message to a session. For an idle session this returns only after the whole turn;
+   * callers that must not wait for the turn use {@link admitMessage}.
+   *
+   * Sends to one session are admitted one at a time: each runs from entry until its message is
+   * queued, steered, or its turn has claimed the session (`isProcessing` + a new
+   * `processingGeneration`). Agent setup and the turn itself run after admission. Without it, two
+   * sends to an idle session both passed the busy check (reached after awaits) and both started a
+   * turn, the later one superseding the earlier. When the turn before queued messages ends, their
+   * replay is due at once (reserveQueueReplay): a message sent before the replay starts its turn is
+   * queued behind them, not run ahead of them.
+   */
   async sendMessage(
     sessionId: string,
     message: string,
@@ -6403,19 +6448,180 @@ export class SessionManager implements ISessionManager {
     existingMessageId?: string,
     _isAuthRetry?: boolean,
     /**
-     * Internal hook fired after the user message has been pushed to
-     * `managed.messages` and persisted to disk, but before the model-streaming
-     * work begins. The RPC handler uses this to send a synchronous "accepted"
-     * ack to the client so a crash mid-stream doesn't lose the user message
-     * (#616). Pre-persist errors still reject the outer promise as before.
+     * Internal hook fired once the user message is persisted to disk and admitted: queued or
+     * steered into the running turn, or, for an idle session, after its turn has claimed the
+     * session and before agent setup and model streaming. The RPC handler uses this to send a
+     * synchronous "accepted" ack to the client so a crash mid-stream doesn't lose the user
+     * message (#616). Errors before the ack still reject the outer promise as before.
      */
-    onAck?: (messageId: string) => void,
+    onAck?: (messageId: string, outcome: MessageAdmission) => void,
     /**
      * Optional transport context. The `sessions.sendMessage` RPC handler passes
      * `{ callerClientId: ctx.clientId }` so the SM can pin the desktop client
      * that should host this session's browser tools. Pass undefined when calling
      * directly (tests, intra-server flows) to leave the existing pin in place.
      */
+    rpcContext?: { callerClientId?: string },
+  ): Promise<void> {
+    await this.sendInSlot(this.reserveAdmission(sessionId), endAdmission =>
+      this.sendAdmittedMessage(endAdmission, sessionId, message, attachments, storedAttachments, options, existingMessageId, _isAuthRetry, onAck, rpcContext))
+  }
+
+  /**
+   * Hand a message to a session without waiting for its turn (see ISessionManager.admitMessage).
+   * A failure in a turn it started, its setup included, ends that turn inside sendMessage. Anything
+   * still thrown after admission is reported here, and the turn ended if the session still runs it.
+   */
+  admitMessage(
+    sessionId: string,
+    message: string,
+    attachments?: FileAttachment[],
+    storedAttachments?: StoredAttachment[],
+    options?: SendMessageOptions,
+  ): Promise<AdmittedMessage> {
+    return new Promise<AdmittedMessage>((resolve, reject) => {
+      let admitted: { outcome: MessageAdmission; generation: number } | undefined
+      const onAck = (messageId: string, outcome: MessageAdmission) => {
+        if (admitted) return
+        admitted = { outcome, generation: this.sessions.get(sessionId)?.processingGeneration ?? -1 }
+        resolve({ messageId, outcome })
+      }
+      this.sendMessage(sessionId, message, attachments, storedAttachments, options, undefined, undefined, onAck)
+        .then(() => {
+          // e.g. a duplicate source-activation retry, dropped before it created a message
+          if (!admitted) reject(new Error(`Message to session ${sessionId} was not admitted`))
+        })
+        .catch(err => {
+          if (!admitted) {
+            reject(err)
+            return
+          }
+          const errorMessage = err instanceof Error ? err.message : String(err)
+          sessionLog.error(`Admitted message failed for session ${sessionId}: ${errorMessage}`)
+          const managed = this.sessions.get(sessionId)
+          if (!managed) return
+          this.sendEvent({ type: 'error', sessionId, error: errorMessage }, managed.workspace.id)
+          if (admitted.outcome === 'started' && managed.isProcessing && managed.processingGeneration === admitted.generation) {
+            this.onProcessingStopped(sessionId, 'error')
+          }
+        })
+    })
+  }
+
+  /** Takes the session's next admission slot now, synchronously: a send reserved later waits for it. */
+  private reserveAdmission(sessionId: string): AdmissionSlot {
+    const ready = this.admissionTails.get(sessionId) ?? Promise.resolve()
+    let release!: () => void
+    const released = new Promise<void>(resolve => { release = resolve })
+    // Settles only after the earlier slots too, so releasing a slot early can't let a later send
+    // in ahead of them.
+    const tail: Promise<void> = Promise.all([ready, released]).then(() => {
+      if (this.admissionTails.get(sessionId) === tail) this.admissionTails.delete(sessionId)
+    })
+    this.admissionTails.set(sessionId, tail)
+    return { ready, release }
+  }
+
+  /**
+   * Marks a replay of the queue as due, synchronously: from now on a send to the idle session is
+   * queued behind the queued messages (see sendAdmittedMessage) until the returned release runs,
+   * when the replay has claimed the session or found nothing to replay. Release is idempotent.
+   */
+  private reserveQueueReplay(managed: ManagedSession): () => void {
+    managed.pendingQueueReplays = (managed.pendingQueueReplays ?? 0) + 1
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      managed.pendingQueueReplays = Math.max(0, (managed.pendingQueueReplays ?? 1) - 1)
+    }
+  }
+
+  /** Runs a send in its slot once the slot is ready; the slot is released when the send ends, if not before. */
+  private async sendInSlot(slot: AdmissionSlot, send: (endAdmission: () => void) => Promise<void>): Promise<void> {
+    try {
+      await slot.ready
+      await send(slot.release)
+    } finally {
+      slot.release()
+    }
+  }
+
+  /**
+   * Sets up a turn's agent: fresh tokens for the enabled sources, every source for context, and the
+   * enabled sources' servers.
+   */
+  private async setUpTurnAgent(managed: ManagedSession, sendSpan: ReturnType<typeof perf.span>): Promise<AgentInstance> {
+    const sessionId = managed.id
+    const workspaceRootPath = managed.workspace.rootPath
+    const enabledSlugs = managed.enabledSourceSlugs ?? []
+    const hasSources = enabledSlugs.length > 0
+
+    // Load enabled sources up-front so we can refresh tokens BEFORE getOrCreateAgent
+    // runs its internal cold-session build. Otherwise that build sees stale tokens
+    // and emits AUTH_REQUIRED, causing a brief "needs_auth" UI flicker before the
+    // post-build refresh restores state (#710).
+    const sources: LoadedSource[] = hasSources
+      ? getSourcesBySlugs(workspaceRootPath, enabledSlugs)
+      : []
+
+    if (hasSources && managed.tokenRefreshManager) {
+      const refreshResult = await refreshExpiredCredentials(sources, managed.tokenRefreshManager)
+      if (refreshResult.failedSources.length > 0) {
+        sessionLog.warn('[OAuth] Some sources failed token refresh:', refreshResult.failedSources.map(f => f.slug))
+      }
+      if (refreshResult.refreshedCount > 0) {
+        sendSpan.mark('oauth.refreshed')
+      }
+    }
+
+    // Get or create the agent (lazy loading). Its internal cold-session build at
+    // ~L2956 now sees fresh tokens (or correctly-needs_auth failed sources, since
+    // ensureFreshToken mirrors the disk write to source.config in-memory).
+    const agent = await this.getOrCreateAgent(managed)
+    sendSpan.mark('agent.ready')
+
+    // Always set all sources for context (even if none are enabled), including built-ins
+    const allSources = loadAllSources(workspaceRootPath)
+    agent.setAllSources(allSources)
+    sendSpan.mark('sources.loaded')
+
+    // Apply source servers if any are enabled
+    if (hasSources) {
+      const sessionPath = getSessionStoragePath(workspaceRootPath, sessionId)
+      // Single fresh build — tokens already refreshed above.
+      const { mcpServers, apiServers, errors } = await buildServersFromSources(sources, sessionPath, managed.tokenRefreshManager, agent.getSummarizeCallback())
+      if (errors.length > 0) {
+        sessionLog.warn(`Source build errors:`, errors)
+      }
+
+      const mcpCount = Object.keys(mcpServers).length
+      const apiCount = Object.keys(apiServers).length
+      if (mcpCount > 0 || apiCount > 0 || enabledSlugs.length > 0) {
+        const usableSources = sources.filter(isSourceUsable)
+        const intendedSlugs = usableSources.map(s => s.config.slug)
+        await agent.setSourceServers(mcpServers, apiServers, intendedSlugs)
+        sessionLog.info(`Applied ${mcpCount} MCP + ${apiCount} API sources to session ${sessionId} (${allSources.length} total)`)
+      }
+      sendSpan.mark('servers.applied')
+    }
+
+    // Continued from another session: the summary this first turn carries may still be generating
+    // (the agent above was set up meanwhile)
+    return agent
+  }
+
+  /** `sendMessage` once admitted; calls `endAdmission` as soon as the message is admitted. */
+  private async sendAdmittedMessage(
+    endAdmission: () => void,
+    sessionId: string,
+    message: string,
+    attachments?: FileAttachment[],
+    storedAttachments?: StoredAttachment[],
+    options?: SendMessageOptions,
+    existingMessageId?: string,
+    _isAuthRetry?: boolean,
+    onAck?: (messageId: string, outcome: MessageAdmission) => void,
     rpcContext?: { callerClientId?: string },
   ): Promise<void> {
     const managed = this.sessions.get(sessionId)
@@ -6460,13 +6666,25 @@ export class SessionManager implements ISessionManager {
     // defaults to provider-appropriate value):
     //
     // - 'steer': try to deliver into the in-flight turn. Pi steers natively;
-    //   Claude emulates via PreToolUse hook. If `redirect()` returns false
-    //   (Claude with no live query, or backend can't steer), the backend has
-    //   already called forceAbort(Redirect) and we queue for replay.
+    //   Claude emulates via PreToolUse hook. While the agent isn't streaming
+    //   the turn (its setup or end) the message is queued as in 'queue' (see
+    //   shouldAttemptMidStreamSteer). If `redirect()` returns false anyway, the
+    //   backend has already called forceAbort(Redirect) and we queue for replay.
     // - 'queue': hold the message untouched; the current turn keeps running
     //   to natural completion; replay as a new turn afterwards. NO call to
     //   `agent.redirect()`, NO forceAbort, NO interruption.
-    if (managed.isProcessing) {
+    //
+    // Between turns, queued messages whose replay is due hold the session for them
+    // (reserveQueueReplay): a message sent before the replay starts its turn is queued behind them,
+    // with no turn to steer into. Not the replay itself, nor an auth retry of the running request.
+    const behindQueuedMessages = !managed.isProcessing && !existingMessageId && !_isAuthRetry
+      && (managed.pendingQueueReplays ?? 0) > 0
+    if (managed.isProcessing || behindQueuedMessages) {
+      if (existingMessageId) {
+        // A replay checks for an idle session in its admission slot (processNextQueuedMessage), and
+        // only a send holding the slot claims the session.
+        throw new Error(`Replay of ${existingMessageId} found session ${sessionId} busy`)
+      }
       const connection = resolveSessionConnection(managed.llmConnection, undefined)
       // Fallback to 'steer' when no connection is resolvable — preserves
       // today's exact behavior (call redirect, take whatever it returns).
@@ -6499,7 +6717,7 @@ export class SessionManager implements ISessionManager {
       // A manual compaction owns the turn: nothing consumes steers, so queue for
       // replay after `complete` instead of steering (OSS #1058). Not an interruption.
       const compactionInFlight = agent?.isCompactionInFlight?.() === true
-      const attemptedSteer = shouldAttemptMidStreamSteer(behavior, textOnly, agent)
+      const attemptedSteer = !behindQueuedMessages && shouldAttemptMidStreamSteer(behavior, textOnly, agent)
       const steered = attemptedSteer && agent
         ? agent.redirect(message, { messageId: userMessage.id })
         : false
@@ -6508,7 +6726,7 @@ export class SessionManager implements ISessionManager {
         (managed.acceptedSteers ??= new Map()).set(userMessage.id, payload)
       }
       if (steered) (managed.turnSteers ??= []).push(message)
-      sessionLog.info('mid-stream send', { sessionId, behavior, steered, textOnly, compactionInFlight, queueLengthBefore: managed.messageQueue.length })
+      sessionLog.info('mid-stream send', { sessionId, behavior, steered, textOnly, compactionInFlight, behindQueuedMessages, queueLengthBefore: managed.messageQueue.length })
 
       const delivery = resolveMidStreamDeliveryOutcome(attemptedSteer ? 'steer' : 'queue', steered)
       userMessage.isQueued = delivery.shouldQueue
@@ -6544,7 +6762,8 @@ export class SessionManager implements ISessionManager {
       // before we tell the renderer "accepted" — `persistSession` only
       // enqueues with a 500ms debounce. (#616 reliability fix.)
       await this.flushSession(managed.id)
-      onAck?.(userMessage.id)
+      endAdmission()
+      onAck?.(userMessage.id, delivery.shouldQueue ? 'queued' : 'steered')
       return
     }
 
@@ -6580,10 +6799,9 @@ export class SessionManager implements ISessionManager {
 
       // Persist + flush before announcing — the user message must be
       // genuinely on disk before we tell the renderer "accepted", and
-      // `persistSession` is debounced (500ms). #616.
+      // `persistSession` is debounced (500ms). #616. The ack itself waits for the claim below.
       this.persistSession(managed)
       await this.flushSession(managed.id)
-      onAck?.(userMessage.id)
 
       // Emit user_message event so UI can confirm the optimistic message
       this.sendEvent({
@@ -6681,6 +6899,11 @@ export class SessionManager implements ISessionManager {
     // A Stop from now on (not a stale stopRequested flag) keeps this turn from starting.
     const turnStopEpoch = managed.stopEpoch ?? 0
 
+    // The turn has claimed the session: a later send now sees it busy and is queued or steered.
+    // Acking only here means a caller resolved by the ack never finds the session idle.
+    endAdmission()
+    onAck?.(userMessage.id, 'started')
+
     // Pre-enable sources required by invoked skills (Issue #249)
     // This eliminates the two-turn penalty where the agent discovers missing sources at runtime.
     // Uses targeted loadSkillBySlug() instead of loadAllSkills() to avoid O(N) filesystem scans.
@@ -6746,59 +6969,9 @@ export class SessionManager implements ISessionManager {
     const sendSpan = perf.span('session.sendMessage', { sessionId })
 
     const workspaceRootPath = managed.workspace.rootPath
-    const enabledSlugs = managed.enabledSourceSlugs ?? []
-    const hasSources = enabledSlugs.length > 0
-
-    // Load enabled sources up-front so we can refresh tokens BEFORE getOrCreateAgent
-    // runs its internal cold-session build. Otherwise that build sees stale tokens
-    // and emits AUTH_REQUIRED, causing a brief "needs_auth" UI flicker before the
-    // post-build refresh restores state (#710).
-    const sources: LoadedSource[] = hasSources
-      ? getSourcesBySlugs(workspaceRootPath, enabledSlugs)
-      : []
-
-    if (hasSources && managed.tokenRefreshManager) {
-      const refreshResult = await refreshExpiredCredentials(sources, managed.tokenRefreshManager)
-      if (refreshResult.failedSources.length > 0) {
-        sessionLog.warn('[OAuth] Some sources failed token refresh:', refreshResult.failedSources.map(f => f.slug))
-      }
-      if (refreshResult.refreshedCount > 0) {
-        sendSpan.mark('oauth.refreshed')
-      }
-    }
-
-    // Get or create the agent (lazy loading). Its internal cold-session build at
-    // ~L2956 now sees fresh tokens (or correctly-needs_auth failed sources, since
-    // ensureFreshToken mirrors the disk write to source.config in-memory).
-    const agent = await this.getOrCreateAgent(managed)
-    sendSpan.mark('agent.ready')
-
-    // Always set all sources for context (even if none are enabled), including built-ins
-    const allSources = loadAllSources(workspaceRootPath)
-    agent.setAllSources(allSources)
-    sendSpan.mark('sources.loaded')
-
-    // Apply source servers if any are enabled
-    if (hasSources) {
-      const sessionPath = getSessionStoragePath(workspaceRootPath, sessionId)
-      // Single fresh build — tokens already refreshed above.
-      const { mcpServers, apiServers, errors } = await buildServersFromSources(sources, sessionPath, managed.tokenRefreshManager, agent.getSummarizeCallback())
-      if (errors.length > 0) {
-        sessionLog.warn(`Source build errors:`, errors)
-      }
-
-      const mcpCount = Object.keys(mcpServers).length
-      const apiCount = Object.keys(apiServers).length
-      if (mcpCount > 0 || apiCount > 0 || enabledSlugs.length > 0) {
-        const usableSources = sources.filter(isSourceUsable)
-        const intendedSlugs = usableSources.map(s => s.config.slug)
-        await agent.setSourceServers(mcpServers, apiServers, intendedSlugs)
-        sessionLog.info(`Applied ${mcpCount} MCP + ${apiCount} API sources to session ${sessionId} (${allSources.length} total)`)
-      }
-      sendSpan.mark('servers.applied')
-    }
-
     try {
+      const agent = await this.setUpTurnAgent(managed, sendSpan)
+
       sessionLog.info('Starting chat for session:', sessionId)
       sessionLog.info('Workspace:', JSON.stringify(managed.workspace, null, 2))
       sessionLog.info('Message:', message)
@@ -7382,149 +7555,230 @@ export class SessionManager implements ISessionManager {
     managed.acceptedSteers?.clear()
 
     // 1. Cleanup state
-    this.setProcessing(managed, false)
-    managed.stopRequested = false  // Reset for next turn
-    // The request is over unless a source activation is about to re-send it.
-    if (!managed.autoRetryTimer && managed.pendingActivationResend === undefined) {
-      this.finishSuggestionTrace(managed)
-      finishLargeResultExcerpts(managed.id)
-    }
-
-    // 1b. Orphan backstop: with the default per-turn subprocess model, any
-    // background sub-agent still marked `running` dies when this turn's
-    // subprocess is torn down. Flip those registry entries to `orphaned` so a
-    // later "status?" query never reports a dead task as running. Suppressed
-    // when WS2 keep-alive keeps the query alive across turns.
-    this.markOrphanedBackgroundTasks(sessionId)
-
-    const turnStartFinalMessageId = managed.turnStartFinalMessageId
-    managed.turnStartFinalMessageId = undefined
-
-    // Clear agent control overlay between turns. The session keeps browser
-    // ownership (boundSessionId) — only the visual overlay is removed.
-    // Full unbind happens below when the queue is empty (session truly done).
-    const turnBpm = this.getBrowserPaneManagerForSession(sessionId)
-    if (turnBpm) {
-      // Same guard as the queue-empty teardown below: a remote BPM throw on a
-      // headless server must not abort processing-stop handling.
-      try {
-        await turnBpm.clearVisualsForSession(sessionId)
-      } catch (err) {
-        sessionLog.warn(`Browser-pane visual clear failed for ${sessionId} (continuing):`, err)
+    // Queued messages replay before anything sent from here on: their replay is due before the
+    // session reads as idle, so a message sent while the steps below run is queued behind them.
+    // The replay starts in step 5.
+    let releaseReplay = managed.messageQueue.length > 0 ? this.reserveQueueReplay(managed) : undefined
+    try {
+      this.setProcessing(managed, false)
+      managed.stopRequested = false  // Reset for next turn
+      // The request is over unless a source activation is about to re-send it.
+      if (!managed.autoRetryTimer && managed.pendingActivationResend === undefined) {
+        this.finishSuggestionTrace(managed)
+        finishLargeResultExcerpts(managed.id)
       }
-    }
 
-    // 2. Handle unread state based on whether user is viewing this session
-    //    This is the explicit state machine for NEW badge:
-    //    - If user is viewing: mark as read (they saw it complete)
-    //    - If user is NOT viewing: mark as unread (they have new content)
-    //    IMPORTANT: only apply this when the turn produced a NEW final assistant message.
-    const isViewing = this.isSessionBeingViewed(sessionId, managed.workspace.id)
-    const currentFinalMessageId = this.getLastFinalAssistantMessageId(managed.messages)
-    const didReceiveNewFinalMessage = !!currentFinalMessageId && currentFinalMessageId !== turnStartFinalMessageId
+      // 1b. Orphan backstop: with the default per-turn subprocess model, any
+      // background sub-agent still marked `running` dies when this turn's
+      // subprocess is torn down. Flip those registry entries to `orphaned` so a
+      // later "status?" query never reports a dead task as running. Suppressed
+      // when WS2 keep-alive keeps the query alive across turns.
+      this.markOrphanedBackgroundTasks(sessionId)
 
-    if (reason === 'complete' && didReceiveNewFinalMessage) {
-      if (isViewing) {
-        // User is watching - mark as read immediately
-        await this.markSessionRead(sessionId)
-      } else {
-        // User is not watching - mark as unread for NEW badge
-        if (!managed.hasUnread) {
-          managed.hasUnread = true
-          await updateSessionMetadata(managed.workspace.rootPath, sessionId, { hasUnread: true })
-          this.emitUnreadSummaryChanged()
-        }
-      }
-    }
+      const turnStartFinalMessageId = managed.turnStartFinalMessageId
+      managed.turnStartFinalMessageId = undefined
 
-    // 3. Auto-complete mini agent sessions to avoid session list clutter
-    //    Mini agents are spawned from EditPopovers for quick config edits
-    //    and should automatically move to 'done' when finished
-    if (reason === 'complete' && managed.systemPromptPreset === 'mini' && managed.sessionStatus !== 'done') {
-      sessionLog.info(`Auto-completing mini agent session ${sessionId}`)
-      await this.setSessionStatus(sessionId, 'done')
-    }
-
-    // 4. Apply deferred external metadata updates captured while processing.
-    if (managed.pendingExternalMetadata) {
-      const pendingHeader = managed.pendingExternalMetadata
-      managed.pendingExternalMetadata = undefined
-      sessionLog.info(`Applying deferred external metadata for session ${sessionId} after processing stop`)
-      this.applyExternalSessionMetadata(managed, pendingHeader)
-    }
-
-    // 5. Check queue and process or complete
-    if (managed.messageQueue.length > 0) {
-      // Has queued messages - process next
-      this.processNextQueuedMessage(sessionId)
-    } else {
-      // Session is truly done — release browser ownership.
-      // The window stays alive (hidden) and becomes reusable by future sessions.
-      // On the next turn, getOrCreateForSession() will re-bind it.
-      const doneBpm = this.getBrowserPaneManagerForSession(sessionId)
-      if (doneBpm) {
-        // Teardown must never block completion. On a headless/WebUI server the BPM is
-        // remote and these calls throw (BROWSER_NO_CAPABLE_CLIENT) when no desktop
-        // browser client is connected — which previously aborted onProcessingStopped
-        // before emitSessionComplete, hanging the Tasks Conductor completion seam.
+      // Clear agent control overlay between turns. The session keeps browser
+      // ownership (boundSessionId) — only the visual overlay is removed.
+      // Full unbind happens below when the queue is empty (session truly done).
+      const turnBpm = this.getBrowserPaneManagerForSession(sessionId)
+      if (turnBpm) {
+        // Same guard as the queue-empty teardown below: a remote BPM throw on a
+        // headless server must not abort processing-stop handling.
         try {
-          await doneBpm.clearVisualsForSession(sessionId)
-          doneBpm.unbindAllForSession(sessionId)
+          await turnBpm.clearVisualsForSession(sessionId)
         } catch (err) {
-          sessionLog.warn(`Browser-pane teardown failed for ${sessionId} (continuing to completion):`, err)
+          sessionLog.warn(`Browser-pane visual clear failed for ${sessionId} (continuing):`, err)
         }
       }
 
-      // No queue - emit complete to UI (include tokenUsage and hasUnread for state updates)
-      this.sendEvent({
-        type: 'complete',
-        sessionId,
-        tokenUsage: managed.tokenUsage,
-        hasUnread: managed.hasUnread,  // Propagate unread state to renderer
-        // WS2: when keep-alive keeps the persistent query open across turns, the
-        // turn ending does NOT kill background sub-agents. Tell the renderer so its
-        // chip orphan-backstop does not falsely flip live tasks to `orphaned`; a
-        // real `task_completed` will arrive when the agent actually finishes.
-        backgroundTasksAlive: this.keepBackgroundTasksAlive,
-      }, managed.workspace.id)
+      // 2. Handle unread state based on whether user is viewing this session
+      //    This is the explicit state machine for NEW badge:
+      //    - If user is viewing: mark as read (they saw it complete)
+      //    - If user is NOT viewing: mark as unread (they have new content)
+      //    IMPORTANT: only apply this when the turn produced a NEW final assistant message.
+      const isViewing = this.isSessionBeingViewed(sessionId, managed.workspace.id)
+      const currentFinalMessageId = this.getLastFinalAssistantMessageId(managed.messages)
+      const didReceiveNewFinalMessage = !!currentFinalMessageId && currentFinalMessageId !== turnStartFinalMessageId
 
-      // Tasks Conductor seam: signal true completion (queue empty) with the stop
-      // reason + this turn's final assistant message, so the Conductor can advance
-      // the corresponding node. In-process only; never sent to the renderer/agents.
-      const turnFinalMessageId = didReceiveNewFinalMessage ? currentFinalMessageId : undefined
-      this.emitSessionComplete({
-        sessionId,
-        workspaceId: managed.workspace.id,
-        reason,
-        finalMessageId: turnFinalMessageId,
-        finalText: turnFinalMessageId
-          ? managed.messages.find(m => m.id === turnFinalMessageId)?.content
-          : undefined,
-        backgroundWorkRunning: this.countRunningBackgroundWork(managed),
-        fromUser: managed.turnFromUser !== false,
-        tokenUsage: managed.tokenUsage,
-      })
-
-      // Hidden/mini sessions have no status worth changing; task sessions are the Conductor's.
-      if (reason === 'complete' && didReceiveNewFinalMessage && currentFinalMessageId
-          && !managed.hidden && managed.systemPromptPreset !== 'mini' && !managed.taskRunId && !managed.taskSlug) {
-        void this.applyTurnOutcome(managed, currentFinalMessageId)
-        if (!managed.triggeredBy) void this.refreshTitleIfDrifted(managed)
+      if (reason === 'complete' && didReceiveNewFinalMessage) {
+        if (isViewing) {
+          // User is watching - mark as read immediately
+          await this.markSessionRead(sessionId)
+        } else {
+          // User is not watching - mark as unread for NEW badge
+          if (!managed.hasUnread) {
+            managed.hasUnread = true
+            await updateSessionMetadata(managed.workspace.rootPath, sessionId, { hasUnread: true })
+            this.emitUnreadSummaryChanged()
+          }
+        }
       }
-    }
 
-    // 6. Always persist
-    this.persistSession(managed)
+      // 3. Auto-complete mini agent sessions to avoid session list clutter
+      //    Mini agents are spawned from EditPopovers for quick config edits
+      //    and should automatically move to 'done' when finished
+      if (reason === 'complete' && managed.systemPromptPreset === 'mini' && managed.sessionStatus !== 'done') {
+        sessionLog.info(`Auto-completing mini agent session ${sessionId}`)
+        await this.setSessionStatus(sessionId, 'done')
+      }
+
+      // 4. Apply deferred external metadata updates captured while processing.
+      if (managed.pendingExternalMetadata) {
+        const pendingHeader = managed.pendingExternalMetadata
+        managed.pendingExternalMetadata = undefined
+        sessionLog.info(`Applying deferred external metadata for session ${sessionId} after processing stop`)
+        this.applyExternalSessionMetadata(managed, pendingHeader)
+      }
+
+      // 5. Check queue and process or complete
+      if (managed.messageQueue.length > 0) {
+        // Has queued messages - process next
+        this.processNextQueuedMessage(sessionId, releaseReplay)
+        releaseReplay = undefined
+      } else if (managed.isProcessing) {
+        // A turn started while the steps above ran (a message sent when none was queued, or this
+        // turn's end reported twice): the session isn't done, and that turn's own end completes it.
+        sessionLog.info(`Session ${sessionId} is running another turn; not reporting completion`)
+      } else {
+        // Session is truly done — release browser ownership.
+        // The window stays alive (hidden) and becomes reusable by future sessions.
+        // On the next turn, getOrCreateForSession() will re-bind it.
+        const doneBpm = this.getBrowserPaneManagerForSession(sessionId)
+        if (doneBpm) {
+          // Teardown must never block completion. On a headless/WebUI server the BPM is
+          // remote and these calls throw (BROWSER_NO_CAPABLE_CLIENT) when no desktop
+          // browser client is connected — which previously aborted onProcessingStopped
+          // before emitSessionComplete, hanging the Tasks Conductor completion seam.
+          try {
+            await doneBpm.clearVisualsForSession(sessionId)
+            doneBpm.unbindAllForSession(sessionId)
+          } catch (err) {
+            sessionLog.warn(`Browser-pane teardown failed for ${sessionId} (continuing to completion):`, err)
+          }
+        }
+
+        // No queue - emit complete to UI (include tokenUsage and hasUnread for state updates)
+        this.sendEvent({
+          type: 'complete',
+          sessionId,
+          tokenUsage: managed.tokenUsage,
+          hasUnread: managed.hasUnread,  // Propagate unread state to renderer
+          // WS2: when keep-alive keeps the persistent query open across turns, the
+          // turn ending does NOT kill background sub-agents. Tell the renderer so its
+          // chip orphan-backstop does not falsely flip live tasks to `orphaned`; a
+          // real `task_completed` will arrive when the agent actually finishes.
+          backgroundTasksAlive: this.keepBackgroundTasksAlive,
+        }, managed.workspace.id)
+
+        // Tasks Conductor seam: signal true completion (queue empty) with the stop
+        // reason + this turn's final assistant message, so the Conductor can advance
+        // the corresponding node. In-process only; never sent to the renderer/agents.
+        const turnFinalMessageId = didReceiveNewFinalMessage ? currentFinalMessageId : undefined
+        this.emitSessionComplete({
+          sessionId,
+          workspaceId: managed.workspace.id,
+          reason,
+          finalMessageId: turnFinalMessageId,
+          finalText: turnFinalMessageId
+            ? managed.messages.find(m => m.id === turnFinalMessageId)?.content
+            : undefined,
+          backgroundWorkRunning: this.countRunningBackgroundWork(managed),
+          fromUser: managed.turnFromUser !== false,
+          tokenUsage: managed.tokenUsage,
+        })
+
+        // Hidden/mini sessions have no status worth changing; task sessions are the Conductor's.
+        if (reason === 'complete' && didReceiveNewFinalMessage && currentFinalMessageId
+            && !managed.hidden && managed.systemPromptPreset !== 'mini' && !managed.taskRunId && !managed.taskSlug) {
+          void this.applyTurnOutcome(managed, currentFinalMessageId)
+          if (!managed.triggeredBy) void this.refreshTitleIfDrifted(managed)
+        }
+      }
+
+      // 6. Always persist
+      this.persistSession(managed)
+    } finally {
+      // Not handed to a replay: the queue emptied meanwhile, or a step above threw.
+      releaseReplay?.()
+    }
   }
 
   /**
-   * Process the next message in the queue.
-   * Called by onProcessingStopped when queue has messages.
+   * Replay the queue's next message, with the continuations merged into it, as a new turn.
+   * Called when the turn before it ends (onProcessingStopped) or queued messages are recovered from
+   * disk, with the replay reserved there (reserveQueueReplay). Nothing leaves the queue until the
+   * replay holds the session's admission slot and finds the session idle: when another turn holds
+   * the session instead, that turn's end replays the queue, which still has every entry.
    */
-  private processNextQueuedMessage(sessionId: string): void {
+  private processNextQueuedMessage(sessionId: string, reservedReplay?: () => void): void {
     const managed = this.sessions.get(sessionId)
-    if (!managed || managed.messageQueue.length === 0) return
+    if (!managed) {
+      reservedReplay?.()
+      return
+    }
+    const releaseReplay = reservedReplay ?? this.reserveQueueReplay(managed)
+    let next: ManagedSession['messageQueue'][number] | undefined
+    let claimed = false
 
+    // Process message (use setImmediate to allow current stack to clear)
+    setImmediate(() => {
+      this.sendInSlot(this.reserveAdmission(sessionId), async endAdmission => {
+        if (this.sessions.get(sessionId) !== managed || managed.isProcessing || managed.messageQueue.length === 0) {
+          sessionLog.info('replay not started', { sessionId, busy: managed.isProcessing, queueLength: managed.messageQueue.length })
+          releaseReplay()
+          return
+        }
+        next = this.takeQueuedTurn(managed)
+        await this.sendAdmittedMessage(
+          () => {
+            claimed = true
+            releaseReplay()
+            endAdmission()
+          },
+          sessionId,
+          next.message,
+          next.attachments,
+          next.storedAttachments,
+          next.options,
+          next.messageId,
+        )
+      }).catch(err => {
+        sessionLog.error('replay failed', {
+          sessionId,
+          messageId: next?.messageId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        // Report queued message failures via runtime hooks
+        sessionRuntimeHooks.captureException(err, { errorSource: 'chat-queue', sessionId })
+        // Surface a typed error so the UI can show a clear, actionable banner
+        // instead of a generic "Unknown error" (#616).
+        this.sendEvent({
+          type: 'typed_error',
+          sessionId,
+          error: {
+            code: 'queued_message_replay_failed',
+            title: 'Queued message could not be sent',
+            message: 'A message you sent while the agent was running could not be re-sent automatically. Tap retry to send it now.',
+            actions: [{ key: 'r', label: 'Retry', action: 'retry' }],
+            canRetry: true,
+            originalError: err instanceof Error ? err.message : String(err),
+          },
+        }, managed.workspace.id)
+        // Ends the replay's own turn, or finishes what the turn before it left (the next queued
+        // message, or the session's completion); never another turn that holds the session.
+        if (claimed || !managed.isProcessing) this.onProcessingStopped(sessionId, 'error')
+      }).finally(releaseReplay)
+    })
+  }
+
+  /**
+   * Takes the queue's next message off the queue, with the continuations judged to belong to it
+   * (`mergeWith`), and shows it as processing. Only for a replay that holds the admission slot of an
+   * idle session (see processNextQueuedMessage), so the turn it starts is the session's next one.
+   */
+  private takeQueuedTurn(managed: ManagedSession): ManagedSession['messageQueue'][number] {
+    const sessionId = managed.id
     const first = managed.messageQueue.shift()!
     // Mid-turn messages: entries judged to continue this one are replayed with it as one turn.
     const merged: typeof managed.messageQueue = []
@@ -7571,41 +7825,7 @@ export class SessionManager implements ISessionManager {
       }
     }
 
-    // Process message (use setImmediate to allow current stack to clear)
-    setImmediate(() => {
-      this.sendMessage(
-        sessionId,
-        next.message,
-        next.attachments,
-        next.storedAttachments,
-        next.options,
-        next.messageId
-      ).catch(err => {
-        sessionLog.error('replay failed', {
-          sessionId,
-          messageId: next.messageId,
-          error: err instanceof Error ? err.message : String(err),
-        })
-        // Report queued message failures via runtime hooks
-        sessionRuntimeHooks.captureException(err, { errorSource: 'chat-queue', sessionId })
-        // Surface a typed error so the UI can show a clear, actionable banner
-        // instead of a generic "Unknown error" (#616).
-        this.sendEvent({
-          type: 'typed_error',
-          sessionId,
-          error: {
-            code: 'queued_message_replay_failed',
-            title: 'Queued message could not be sent',
-            message: 'A message you sent while the agent was running could not be re-sent automatically. Tap retry to send it now.',
-            actions: [{ key: 'r', label: 'Retry', action: 'retry' }],
-            canRetry: true,
-            originalError: err instanceof Error ? err.message : String(err),
-          },
-        }, managed.workspace.id)
-        // Call onProcessingStopped to handle cleanup and check for more queued messages
-        this.onProcessingStopped(sessionId, 'error')
-      })
-    })
+    return next
   }
 
   async killShell(sessionId: string, shellId: string): Promise<{ success: boolean; error?: string }> {

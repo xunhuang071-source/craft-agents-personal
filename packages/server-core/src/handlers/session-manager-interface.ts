@@ -26,6 +26,17 @@ import type {
 import type { SessionBundle, DispatchMode } from '@craft-agent/shared/sessions'
 import type { EventSink } from '../transport'
 
+/**
+ * How a session took a message: it `started` a turn (the session was idle), was `queued`
+ * behind the running turn, or was `steered` into it.
+ */
+export type MessageAdmission = 'started' | 'queued' | 'steered'
+
+export interface AdmittedMessage {
+  messageId: string
+  outcome: MessageAdmission
+}
+
 export interface ISessionManager {
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -115,9 +126,16 @@ export interface ISessionManager {
     options?: SendMessageOptions,
     existingMessageId?: string,
     _isAuthRetry?: boolean,
-    onAck?: (messageId: string) => void,
+    onAck?: (messageId: string, outcome: MessageAdmission) => void,
     rpcContext?: { callerClientId?: string },
   ): Promise<void>
+  admitMessage(
+    sessionId: string,
+    message: string,
+    attachments?: FileAttachment[],
+    storedAttachments?: StoredAttachment[],
+    options?: SendMessageOptions,
+  ): Promise<AdmittedMessage>
   cancelProcessing(sessionId: string, silent?: boolean): Promise<void>
   killShell(sessionId: string, shellId: string): Promise<{ success: boolean; error?: string }>
   getTaskOutput(taskId: string): Promise<string | null>

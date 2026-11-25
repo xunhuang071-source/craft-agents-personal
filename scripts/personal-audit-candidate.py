@@ -8,7 +8,7 @@ p.add_argument('--app', required=True)
 p.add_argument('--baseline-inventory', required=True)
 p.add_argument('--inventory', required=True)
 p.add_argument('--out', required=True)
-p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai', 'pi-compaction', 'oauth-card', 'pi-images'], default='diagram')
+p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai', 'pi-compaction', 'oauth-card', 'pi-images', 'session-messages'], default='diagram')
 a = p.parse_args()
 base, app, out = Path(a.base_app), Path(a.app), Path(a.out)
 old = {e['path']: e for e in json.loads(Path(a.baseline_inventory).read_text())['entries']}
@@ -45,6 +45,8 @@ def allowed(rel):
               '_CodeSignature/' in rel or rel == executable)
     if a.scope == 'context-openai':
         return common or rel == 'Contents/Resources/app/dist/interceptor.cjs'
+    if a.scope == 'session-messages':
+        return common
     if a.scope == 'pi-images':
         return ('_CodeSignature/' in rel or rel == executable or rel in {
             'Contents/Resources/app/resources/pi-agent-server/index.js',
