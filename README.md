@@ -6,10 +6,10 @@
 
 ## 下载与安装
 
-**当前正式版：[wallee-v1.5.1](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.5.1)**
+**当前正式版：[wallee-v1.5.2](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.5.2)**
 
-- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.1/Craft-Agents-wallee-v1.5.1-mac-arm64.zip)
-- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.1/SHA256SUMS)
+- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.2/Craft-Agents-wallee-v1.5.2-mac-arm64.zip)
+- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.2/SHA256SUMS)
 - [版本日志](docs/personal/CHANGELOG.md)
 
 当前提供 macOS Apple Silicon 构建。退出旧版应用后，解压 ZIP，将 `Craft Agents.app` 拖入“应用程序”替换。程序采用本地 ad-hoc 签名，未进行 Apple 公证；请先核对下载校验值，并按 macOS 的安全提示处理首次打开。
@@ -66,7 +66,7 @@ HTML 当前支持自包含静态文件：内联样式和 data 图片可用，业
 ## 构建与版本管理
 
 - `main`：当前社区版主程序、工作台、构建和维护记录。
-- `engine`：历史版本使用的独立 Antigravity 引擎来源；当前 1.5.1 应用不包含该引擎。
+- `engine`：历史版本使用的独立 Antigravity 引擎来源；当前 1.5.2 应用不包含该引擎。
 - `extensions/visual-review/`：版本化工作台源码及独立依赖锁。
 - `personal-release.json`：正式版组件锁、验收记录及模块版本。
 - Release：代码安装包、完整应用文件清单、SHA256 和验证摘要。大文件不存入 Git/LFS。

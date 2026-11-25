@@ -38,9 +38,17 @@ git worktree add ../craft-agents-personal-engine origin/engine
 
 2026-11-17 用户批准从官方 v0.15.10 定点移植两项修复。用户已安装候选 wallee-v1.5.1-rc.1，并批准按原字节晋升公开正式版 wallee-v1.5.1。使用 `scripts/personal-build-context-openai-candidate.mjs VERIFIED_1_5_0_APP NEW_OUTPUT_DIR VERSION`，不可变输入锁为 `docs/personal/baselines/wallee-v1.5.0.json`。仅重建 main 与 interceptor，使用 `context-openai` 范围全文件审计。Pi、界面、preload、sources 指南和工作台保持原字节。详见 [本次验收说明](CONTEXT-OPENAI-REVIEW.md)。本次晋升只更新元数据，不重建、重新签名或再次安装。
 
+## OAuth 登录与 Pi 自动压缩
+
+wallee-v1.5.2 沿用已安装的 wallee-v1.5.2-rc.2 原字节。OAuth 界面与预加载程序来自 rc.1，主程序和 Pi 子进程来自 rc.2。
+
+- `scripts/personal-build-oauth-card-candidate.mjs` 使用 `docs/personal/baselines/wallee-v1.5.1.json` 验证基础应用，只构建 OAuth 界面和预加载程序。
+- `scripts/personal-build-pi-compaction-candidate.mjs` 的第四个参数传入 `docs/personal/baselines/wallee-v1.5.2-rc.1.json`，以已校验的 OAuth 候选为输入，只构建主程序和 Pi 子进程。
+- 正式版核验使用 `docs/personal/baselines/wallee-v1.5.2.json`。用户已安装该程序，晋升只更新发布记录。
+
 ## 最小构建
 
-当前 wallee-v1.5.1 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
+当前 wallee-v1.5.2 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
 
 ```sh
 npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional

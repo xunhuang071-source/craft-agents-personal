@@ -9,7 +9,7 @@ import {fileURLToPath} from 'node:url'
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')
 const [baseArg,outArg,version,lockArg]=process.argv.slice(2)
 if(!baseArg||!outArg||!/^wallee-v\d+\.\d+\.\d+-rc\.\d+$/.test(version||''))throw Error('Usage: node scripts/personal-build-pi-compaction-candidate.mjs VERIFIED_BASE_APP NEW_OUTPUT_DIR VERSION [BASELINE_LOCK]')
-const base=fs.realpathSync(baseArg),out=path.resolve(outArg),app=path.join(out,'Craft Agents.app'),lockPath=lockArg?path.resolve(lockArg):path.join(root,'personal-release.json'),baseline=JSON.parse(fs.readFileSync(lockPath,'utf8'))
+const base=fs.realpathSync(baseArg),out=path.resolve(outArg),app=path.join(out,'Craft Agents.app'),lockPath=lockArg?path.resolve(lockArg):path.join(root,'docs/personal/baselines/wallee-v1.5.1.json'),baseline=JSON.parse(fs.readFileSync(lockPath,'utf8'))
 if(!['wallee-v1.5.1','wallee-v1.5.2-rc.1'].includes(baseline.version))throw Error('Review baseline first')
 if(fs.existsSync(out)||out.startsWith('/Applications/')||app===base||app.startsWith(base+path.sep)||base.startsWith(app+path.sep))throw Error('Choose a fresh non-overlapping output directory')
 const staging=fs.mkdtempSync(path.join(os.tmpdir(),'craft-compaction-build-')),bun=path.join(base,'Contents/Resources/app/vendor/bun/bun')
