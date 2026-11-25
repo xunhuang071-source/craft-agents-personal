@@ -9,7 +9,26 @@ import {
   CRAFT_PI_EPHEMERAL_RETRY_SETTINGS,
   CRAFT_PI_RETRY_SETTINGS,
   createCraftSettingsManager,
+  buildCompactionOverrides,
 } from './session-settings.ts';
+
+describe('Craft automatic compaction limit', () => {
+  it('uses the configured limit while preserving native safety headroom and recent history', () => {
+    const large = { provider: 'custom-endpoint', id: 'kimi/pro', contextWindow: 1_048_576 };
+    const small = { provider: 'custom-endpoint', id: 'small', contextWindow: 120_000 };
+    const defaults = SettingsManager.inMemory().getCompactionSettings();
+    const settings = createCraftSettingsManager('main', buildCompactionOverrides(400_000, [large, small]));
+    settings.setCompactionEnabled(true);
+    expect(settings.getCompactionSettings(large)).toEqual({ ...defaults, reserveTokens: 648_576 });
+    expect(settings.getCompactionSettings(small)).toEqual(defaults);
+  });
+
+  it('leaves SDK defaults in use when no positive integer limit is configured', () => {
+    for (const invalid of [undefined, 0, -1, 0.5, Number.NaN]) {
+      expect(buildCompactionOverrides(invalid, [])).toBeUndefined();
+    }
+  });
+});
 
 describe('createCraftSettingsManager', () => {
   it('batches steering without changing follow-up defaults', () => {

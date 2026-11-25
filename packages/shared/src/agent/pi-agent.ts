@@ -100,7 +100,7 @@ import { runPreToolUseChecks, type PreToolUseCheckResult, type PreToolUseInput }
 import type { PermissionRemember } from './core/permission-remember.ts';
 import { applyGuardedModeCheck, needsGuardedModeCheck } from './core/guarded-mode.ts';
 import { getRtkPath } from './core/rtk-detector.ts';
-import { getRtkEnabled, getRtkExcludeCommands, getBrowserToolEnabled } from '../config/storage.ts';
+import { getRtkEnabled, getRtkExcludeCommands, getBrowserToolEnabled, loadStoredConfig } from '../config/storage.ts';
 import type { RtkContext } from './core/rtk-rewrite.ts';
 
 // Workspace slug extraction for skill qualification
@@ -595,6 +595,7 @@ export class PiAgent extends BaseAgent {
       baseUrl: runtime.baseUrl,
       customEndpoint: runtime.customEndpoint,
       customModels: runtime.customModels,
+      autoCompactWindow: loadStoredConfig()?.autoCompactWindow,
       // Branch params for Pi SDK session fork
       branchFromSdkSessionId: this.config.session?.branchFromSdkSessionId,
       branchFromSessionPath: this.config.session?.branchFromSessionPath,

@@ -8,7 +8,7 @@ p.add_argument('--app', required=True)
 p.add_argument('--baseline-inventory', required=True)
 p.add_argument('--inventory', required=True)
 p.add_argument('--out', required=True)
-p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai'], default='diagram')
+p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai', 'pi-compaction'], default='diagram')
 a = p.parse_args()
 base, app, out = Path(a.base_app), Path(a.app), Path(a.out)
 old = {e['path']: e for e in json.loads(Path(a.baseline_inventory).read_text())['entries']}
@@ -41,6 +41,8 @@ def allowed(rel):
               '_CodeSignature/' in rel or rel == executable)
     if a.scope == 'context-openai':
         return common or rel == 'Contents/Resources/app/dist/interceptor.cjs'
+    if a.scope == 'pi-compaction':
+        return common or rel == 'Contents/Resources/app/resources/pi-agent-server/index.js'
     if a.scope == 'source-sync':
         return common or rel in {'Contents/Resources/app/resources/pi-agent-server/index.js', 'Contents/Resources/app/dist/resources/docs/sources.md'}
     if a.scope == 'visual-review':
@@ -70,6 +72,11 @@ patterns = {
 # slug inside markdown-it-task-lists, not a provider credential. No bundle/test
 # directory is exempted; changing this source map invalidates the review.
 review = {
+    ('Contents/Resources/app/dist/renderer/assets/index-BmANKZKi.js.map',
+     '05e45283ee1ba7a4df230f4697cb769c3a120fa89cea7a9819675f46d24960b2',
+     'provider-key',
+     '943b839ecafef60eae285966eb79ba49213426741320e3866181a28b2c7b394d'):
+    'Verified markdown-it-task-lists documentation URL in the retained OAuth candidate source map',
     ('Contents/Resources/app/dist/renderer/assets/index-DhqHKzAi.js.map',
      'fd6476457843e6963617e0ab980120dd6400a19c92941945e9f8213b94bc94d8',
      'provider-key',

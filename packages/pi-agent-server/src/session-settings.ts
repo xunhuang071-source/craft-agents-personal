@@ -21,6 +21,7 @@
  * and tools for its sessions, so none of that is wanted.
  */
 import { SettingsManager } from '@earendil-works/pi-coding-agent';
+import type { Api, Model } from '@earendil-works/pi-ai';
 import { LLM_QUERY_TIMEOUT_MS } from '../../shared/src/agent/llm-tool.ts';
 
 type PiSettings = NonNullable<Parameters<typeof SettingsManager.inMemory>[0]>;
@@ -115,6 +116,20 @@ export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): P
   };
 }
 
+/** Translate Craft's upper limit to Pi's native per-model safety reserve. */
+export function buildCompactionOverrides(
+  window: number | undefined,
+  models: readonly Pick<Model<Api>, 'provider' | 'id' | 'contextWindow'>[],
+): NonNullable<PiSettings['compaction']>['modelOverrides'] {
+  if (typeof window !== 'number' || !Number.isSafeInteger(window) || window <= 0) return undefined;
+
+  const { reserveTokens: defaultReserve } = SettingsManager.inMemory().getCompactionSettings();
+  return Object.fromEntries(models.map(model => [
+    `${model.provider}/${model.id}`,
+    { reserveTokens: Math.max(defaultReserve, model.contextWindow - window) },
+  ]));
+}
+
 /**
  * Fresh in-memory settings manager for one Pi session. Cheap to create; not
  * shared between the main session and `queryLlm` ephemeral sessions so a
@@ -122,6 +137,9 @@ export function buildCraftPiSettings(purpose: CraftPiSessionPurpose = 'main'): P
  */
 export function createCraftSettingsManager(
   purpose: CraftPiSessionPurpose = 'main',
+  modelOverrides?: NonNullable<PiSettings['compaction']>['modelOverrides'],
 ): SettingsManager {
-  return SettingsManager.inMemory(buildCraftPiSettings(purpose), { projectTrusted: false });
+  const settings = buildCraftPiSettings(purpose);
+  if (modelOverrides) settings.compaction = { ...settings.compaction, modelOverrides };
+  return SettingsManager.inMemory(settings, { projectTrusted: false });
 }

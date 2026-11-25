@@ -71,6 +71,7 @@ import { queryMiniModel } from './mini-model-query.ts';
 import {
   CRAFT_PI_EPHEMERAL_QUERY_DEADLINE_MS,
   createCraftSettingsManager,
+  buildCompactionOverrides,
 } from './session-settings.ts';
 import {
   EphemeralQueryCancelledError,
@@ -130,6 +131,7 @@ interface InitMessage {
   workingDirectory: string;
   plansFolderPath: string;
   miniModel?: string;
+  autoCompactWindow?: number;
   agentDir?: string;
   providerType?: string;
   authType?: string;
@@ -673,7 +675,9 @@ async function ensureSession(): Promise<AgentSession> {
   // settingsManager: explicit in-memory settings (retry policy, compaction)
   // instead of the SDK default that merges `<cwd>/.pi/settings.json` from the
   // user's working directory and writes to `<agentDir>/settings.json`.
-  const settingsManager = createCraftSettingsManager('main');
+  const settingsManager = createCraftSettingsManager(
+    'main', buildCompactionOverrides(initConfig.autoCompactWindow, modelRegistry.getAll()),
+  );
   // Resource isolation: never resolve extensions/skills from ~/.pi/agent.
   const agentDir = resolveCraftAgentDir(initConfig);
   const sessionOptions: CreateAgentSessionOptions = {
@@ -1645,7 +1649,9 @@ async function handleCompact(msg: Extract<InboundMessage, { type: 'compact' }>):
 async function handleSetAutoCompaction(msg: Extract<InboundMessage, { type: 'set_auto_compaction' }>): Promise<void> {
   try {
     const session = await ensureSession();
+    const modelOverrides = session.settingsManager.getSettings().compaction?.modelOverrides;
     session.setAutoCompactionEnabled(msg.enabled);
+    if (modelOverrides) session.settingsManager.applyOverrides({ compaction: { modelOverrides } });
     send({
       type: 'set_auto_compaction_result',
       id: msg.id,
@@ -1706,7 +1712,7 @@ async function handleUpdateRuntimeConfig(msg: RuntimeConfigUpdateMessage): Promi
         throw new Error(`Could not resolve model after runtime update: ${msg.model}`);
       }
 
-      await piSession.setModel(piModel);
+      await setSessionModel(piSession, piModel);
       setInterceptorApiHints(piModel as { api?: string; provider?: string; baseUrl?: string });
       debugLog(`[runtime_config] Updated runtime config and active model: ${piModel.provider}/${piModel.id}`);
     } else {
@@ -1719,6 +1725,12 @@ async function handleUpdateRuntimeConfig(msg: RuntimeConfigUpdateMessage): Promi
     debugLog(`[runtime_config] Failed: ${errorMsg}`);
     send({ type: 'update_runtime_config_result', id: msg.id, success: false, updated: false, errorMessage: errorMsg });
   }
+}
+
+async function setSessionModel(session: AgentSession, model: NonNullable<AgentSession['model']>): Promise<void> {
+  await session.setModel(model);
+  const modelOverrides = buildCompactionOverrides(initConfig?.autoCompactWindow, [model]);
+  if (modelOverrides) session.settingsManager.applyOverrides({ compaction: { modelOverrides } });
 }
 
 async function handleSetModel(msg: Extract<InboundMessage, { type: 'set_model' }>): Promise<void> {
@@ -1745,7 +1757,7 @@ async function handleSetModel(msg: Extract<InboundMessage, { type: 'set_model' }
     return;
   }
   try {
-    await piSession.setModel(piModel);
+    await setSessionModel(piSession, piModel);
     setInterceptorApiHints(piModel as { api?: string; provider?: string; baseUrl?: string });
     // Keep initConfig.model current so downstream consumers that read it (e.g. the web-search
     // provider's model derivation, #1023) reflect the switch — setModel alone didn't update it.
