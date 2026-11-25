@@ -1,12 +1,14 @@
 import * as React from 'react'
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Key, User, Lock, Eye, EyeOff, CheckCircle2, XCircle, type LucideIcon } from 'lucide-react'
 import { Spinner } from '@craft-agent/ui'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import type { Message, CredentialResponse } from '../../../shared/types'
+import type { Message, CredentialResponse, SourceOAuthProgress } from '../../../shared/types'
 import type { AuthRequestType, AuthStatus } from '@craft-agent/core/types'
 import { validateBasicAuthCredentials, getPasswordValue, getPasswordLabel, getPasswordPlaceholder } from '@/utils/auth-validation'
 
@@ -163,6 +165,9 @@ interface AuthRequestCardProps {
  * - failed: Show error state
  */
 export function AuthRequestCard({ message, onRespondToCredential, sessionId, isInteractive = true }: AuthRequestCardProps) {
+  const { t } = useTranslation()
+  const [oauthProgress, setOAuthProgress] = useState<SourceOAuthProgress>()
+  const [oauthError, setOAuthError] = useState<string>()
   const [value, setValue] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -261,31 +266,46 @@ export function AuthRequestCard({ message, onRespondToCredential, sessionId, isI
   }, [isValid, handleSubmit, handleCancel])
 
   const handleOAuthClick = useCallback(async () => {
-    // Client-driven OAuth: callback server runs locally, server owns tokens
+    const fallback = t('sourceOAuth.failed', { defaultValue: 'Sign-in failed' })
     if (!authRequestId || !authSourceSlug) {
-      console.warn('[AuthRequestCard] handleOAuthClick bailed: missing', {
-        authRequestId: authRequestId ?? 'MISSING',
-        authSourceSlug: authSourceSlug ?? 'MISSING',
-        sessionId,
-      })
+      setOAuthError(t('sourceOAuth.missingRequest', { defaultValue: 'This sign-in request is incomplete. Start a new request from Sources.' }))
       return
     }
+    setOAuthError(undefined)
     setIsSubmitting(true)
     try {
       const result = await window.electronAPI.performOAuth({
         sourceSlug: authSourceSlug,
         sessionId,
         authRequestId,
-      })
-      if (!result.success) {
-        console.warn('[AuthRequestCard] performOAuth returned failure:', result.error)
-      }
+      }, setOAuthProgress)
+      if (!result.success) setOAuthError(result.error || fallback)
     } catch (error) {
-      console.error('[AuthRequestCard] performOAuth threw:', error)
+      setOAuthError(error instanceof Error ? error.message : fallback)
     } finally {
+      setOAuthProgress(undefined)
       setIsSubmitting(false)
     }
-  }, [sessionId, authRequestId, authSourceSlug])
+  }, [sessionId, authRequestId, authSourceSlug, t])
+
+  const oauthUrl = oauthProgress && 'url' in oauthProgress ? oauthProgress.url : undefined
+  const openOAuthPage = async () => {
+    if (!authRequestId || !oauthUrl) return
+    try {
+      await window.electronAPI.reopenSourceOAuth(sessionId, authRequestId)
+    } catch {
+      toast.error(t('sourceOAuth.browserFailed', { defaultValue: 'Could not open the browser. Copy the link to open it manually.' }))
+    }
+  }
+  const copyOAuthLink = async () => {
+    if (!oauthUrl) return
+    try {
+      await navigator.clipboard.writeText(oauthUrl)
+      toast.success(t('sourceOAuth.copied', { defaultValue: 'Authorization link copied' }))
+    } catch {
+      toast.error(t('sourceOAuth.copyFailed', { defaultValue: 'Could not copy the authorization link' }))
+    }
+  }
 
   // Get field labels
   const credentialLabel = authLabels?.credential ||
@@ -406,7 +426,13 @@ export function AuthRequestCard({ message, onRespondToCredential, sessionId, isI
               {`${authSourceName} Authenticating...`}
             </div>
             <div className="text-xs mt-0.5 opacity-50">
-              Complete authentication in your browser
+              {oauthProgress?.stage === 'completing'
+                ? t('sourceOAuth.completing', { defaultValue: 'Completing sign-in…' })
+                : oauthProgress?.stage === 'browser-failed'
+                  ? t('sourceOAuth.browserFailed', { defaultValue: 'Could not open the browser. Copy the link to open it manually.' })
+                  : oauthUrl
+                    ? t('sourceOAuth.waiting', { defaultValue: 'Complete sign-in in your browser.' })
+                    : t('sourceOAuth.preparing', { defaultValue: 'Preparing the authorization link…' })}
             </div>
           </div>
         </div>
@@ -587,7 +613,9 @@ export function AuthRequestCard({ message, onRespondToCredential, sessionId, isI
       return (
         <AuthCardActions
           primary={{
-            label: `Sign in with ${authTypeLabel.replace(' Sign-In', '')}`,
+            label: oauthError
+              ? t('sourceOAuth.retry', { defaultValue: 'Retry sign-in' })
+              : `Sign in with ${authTypeLabel.replace(' Sign-In', '')}`,
             onClick: handleOAuthClick,
             dataTutorial: 'oauth-sign-in-button',
           }}
@@ -630,6 +658,26 @@ export function AuthRequestCard({ message, onRespondToCredential, sessionId, isI
         )}
       >
         {renderContent()}
+        {isOAuth && authStatus === 'pending' && oauthError && (
+          <p role="alert" className="mt-2 break-words text-xs text-destructive">{oauthError}</p>
+        )}
+        {isOAuth && authStatus === 'pending' && oauthUrl && (
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+            <button type="button" onClick={openOAuthPage} className="underline underline-offset-2">
+              {t('sourceOAuth.open', { defaultValue: 'Open authorization page' })}
+            </button>
+            <button type="button" onClick={copyOAuthLink} className="underline underline-offset-2">
+              {t('sourceOAuth.copy', { defaultValue: 'Copy authorization link' })}
+            </button>
+            <button type="button" className="underline underline-offset-2" onClick={() => {
+              if (!authRequestId) return
+              window.electronAPI.cancelSourceOAuth(sessionId, authRequestId)
+              setOAuthProgress(undefined)
+            }}>
+              {t('sourceOAuth.stopAttempt', { defaultValue: 'Stop this attempt' })}
+            </button>
+          </div>
+        )}
         {renderCredentialFields()}
       </div>
 

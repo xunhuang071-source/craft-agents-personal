@@ -818,7 +818,10 @@ export function NavigationProvider({
 
         case 'oauth':
           if (parsed.id) {
-            await window.electronAPI.performOAuth({ sourceSlug: parsed.id })
+            const result = await window.electronAPI.performOAuth({ sourceSlug: parsed.id })
+            if (!result.success) {
+              toast.error(t('sourceOAuth.failed', { defaultValue: 'Sign-in failed' }), { description: result.error })
+            }
           }
           break
 
@@ -856,7 +859,7 @@ export function NavigationProvider({
           console.warn('[Navigation] Unknown action:', parsed.name)
       }
     },
-    [workspaceId, onCreateSession, onInputChange, pushPanel, store, updateSessionMeta]
+    [t, workspaceId, onCreateSession, onInputChange, pushPanel, store, updateSessionMeta]
   )
 
   // =========================================================================

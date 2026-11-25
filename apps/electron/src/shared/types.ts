@@ -1,3 +1,20 @@
+export interface SourceOAuthRequest {
+  sourceSlug: string
+  sessionId?: string
+  authRequestId?: string
+}
+
+export type SourceOAuthProgress =
+  | { stage: 'ready'; url: string }
+  | { stage: 'browser-failed'; url: string }
+  | { stage: 'completing' }
+
+export interface SourceOAuthResult {
+  success: boolean
+  error?: string
+  email?: string
+}
+
 // =============================================================================
 // Protocol re-exports (channels, DTOs, events, wire types)
 // =============================================================================
@@ -497,7 +514,9 @@ export interface ElectronAPI {
   getMcpTools(workspaceId: string, sourceSlug: string): Promise<McpToolsResult>
 
   // OAuth (server-owned credentials, client-orchestrated flow)
-  performOAuth(args: { sourceSlug: string; sessionId?: string; authRequestId?: string }): Promise<{ success: boolean; error?: string; email?: string }>
+  performOAuth(args: SourceOAuthRequest, onProgress?: (progress: SourceOAuthProgress) => void): Promise<SourceOAuthResult>
+  reopenSourceOAuth(sessionId: string, authRequestId: string): Promise<void>
+  cancelSourceOAuth(sessionId: string, authRequestId: string): void
   oauthRevoke(sourceSlug: string): Promise<{ success: boolean }>
 
   // Session content search (full-text search via ripgrep)

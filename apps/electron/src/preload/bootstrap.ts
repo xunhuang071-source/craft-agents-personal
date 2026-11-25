@@ -37,6 +37,7 @@ import type { ConfirmDialogSpec, FileDialogSpec, BrowserCapabilityRequest } from
 import type { RpcClient } from '@craft-agent/server-core/transport'
 import type { RemoteServerConfig } from '@craft-agent/core/types'
 import type { ElectronAPI } from '../shared/types'
+import { runSourceOAuth } from './source-oauth'
 
 // ---------------------------------------------------------------------------
 // Client interface — common surface for both RoutedClient and WsRpcClient
@@ -264,68 +265,42 @@ client.onConnectionStateChanged((state) => {
   client.reconnectNow()
 }
 
-// ── performOAuth ─────────────────────────────────────────────────────────
-// Multi-step orchestration: callback server (local) → oauth:start (server) →
-// open browser → wait for callback → oauth:complete (server).
-// Runs client-side because the callback server must receive the redirect.
-;(api as any).performOAuth = async (args: {
-  sourceSlug: string
-  sessionId?: string
-  authRequestId?: string
-}): Promise<{ success: boolean; error?: string; email?: string }> => {
-  let callbackServer: Awaited<ReturnType<typeof createCallbackServer>> | null = null
-  let flowId: string | undefined
-  let state: string | undefined
+// The callback listener and browser live on the desktop, including for remote workspaces.
+const activeSourceOAuth = new Map<string, { controller: AbortController; url?: string }>()
+const sourceOAuthKey = (sessionId: string, requestId: string) => JSON.stringify([sessionId, requestId])
 
-  try {
-    // 1. Start local callback server to receive OAuth redirect
-    callbackServer = await createCallbackServer({ appType: 'electron' })
-    const callbackUrl = `${callbackServer.url}/callback`
-
-    // 2. Ask server to prepare the flow (PKCE, auth URL, store in flow store)
-    const startResult = await client.invoke('oauth:start', {
-      sourceSlug: args.sourceSlug,
-      callbackUrl,
-      sessionId: args.sessionId,
-      authRequestId: args.authRequestId,
-    })
-    flowId = startResult.flowId
-    state = startResult.state
-
-    // 3. Open browser for user consent (local — must open on the user's machine, not remote server)
-    await shell.openExternal(startResult.authUrl)
-
-    // 4. Wait for OAuth provider to redirect to our callback server
-    const callback = await callbackServer.promise
-
-    // 5. Check for errors from the provider
-    if (callback.query.error) {
-      const error = callback.query.error_description || callback.query.error
-      await client.invoke('oauth:cancel', { flowId, state })
-      return { success: false, error }
-    }
-
-    const code = callback.query.code
-    if (!code) {
-      await client.invoke('oauth:cancel', { flowId, state })
-      return { success: false, error: 'No authorization code received' }
-    }
-
-    // 6. Send code to server for token exchange + credential storage
-    const result = await client.invoke('oauth:complete', { flowId, code, state })
-    return { success: result.success, error: result.error, email: result.email }
-  } catch (err) {
-    // Clean up server-side flow on error
-    if (flowId && state) {
-      client.invoke('oauth:cancel', { flowId, state }).catch(() => {})
-    }
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'OAuth flow failed',
-    }
-  } finally {
-    callbackServer?.close()
+api.performOAuth = async (args, onProgress) => {
+  const key = args.sessionId && args.authRequestId && sourceOAuthKey(args.sessionId, args.authRequestId)
+  if (key && activeSourceOAuth.has(key)) {
+    return { success: false, error: 'This sign-in is already in progress.' }
   }
+  const controller = new AbortController()
+  const attempt: { controller: AbortController; url?: string } = { controller }
+  if (key) activeSourceOAuth.set(key, attempt)
+  try {
+    return await runSourceOAuth({
+      createListener: () => createCallbackServer({ appType: 'electron' }),
+      start: (callbackUrl) => client.invoke('oauth:start', { ...args, callbackUrl }),
+      openBrowser: (url) => shell.openExternal(url),
+      complete: (flow, code) => client.invoke('oauth:complete', { flowId: flow.flowId, state: flow.state, code }),
+      cancel: (flow) => client.invoke('oauth:cancel', { flowId: flow.flowId, state: flow.state }),
+    }, controller.signal, onProgress && ((progress) => {
+      attempt.url = 'url' in progress ? progress.url : undefined
+      onProgress(progress)
+    }))
+  } finally {
+    if (key) activeSourceOAuth.delete(key)
+  }
+}
+
+api.reopenSourceOAuth = async (sessionId: string, requestId: string) => {
+  const attempt = activeSourceOAuth.get(sourceOAuthKey(sessionId, requestId))
+  if (!attempt?.url || attempt.controller.signal.aborted) throw new Error('No active authorization link')
+  await shell.openExternal(attempt.url)
+}
+
+api.cancelSourceOAuth = (sessionId, requestId) => {
+  activeSourceOAuth.get(sourceOAuthKey(sessionId, requestId))?.controller.abort()
 }
 
 // ── startClaudeOAuth ─────────────────────────────────────────────────────

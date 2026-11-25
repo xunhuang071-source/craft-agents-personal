@@ -8,7 +8,7 @@ p.add_argument('--app', required=True)
 p.add_argument('--baseline-inventory', required=True)
 p.add_argument('--inventory', required=True)
 p.add_argument('--out', required=True)
-p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai', 'pi-compaction'], default='diagram')
+p.add_argument('--scope', choices=['diagram', 'pi-sdk', 'finder-links', 'visual-review', 'diagram-reading', 'source-sync', 'context-openai', 'pi-compaction', 'oauth-card'], default='diagram')
 a = p.parse_args()
 base, app, out = Path(a.base_app), Path(a.app), Path(a.out)
 old = {e['path']: e for e in json.loads(Path(a.baseline_inventory).read_text())['entries']}
@@ -35,6 +35,10 @@ candidate_code = unsigned_macho(app / executable)
 assert base_code == candidate_code, 'Executable code changed beyond the embedded signature'
 
 def allowed(rel):
+    if a.scope == 'oauth-card':
+        return (rel == 'Contents/Resources/app/dist/bootstrap-preload.cjs' or
+                rel.startswith('Contents/Resources/app/dist/renderer/') or
+                '_CodeSignature/' in rel or rel == executable)
     if a.scope == 'diagram-reading':
         return rel.startswith('Contents/Resources/app/dist/renderer/') or '_CodeSignature/' in rel or rel == executable
     common = (rel == 'Contents/Resources/app/dist/main.cjs' or
