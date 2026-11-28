@@ -50,9 +50,13 @@ wallee-v1.5.2 沿用已安装的 wallee-v1.5.2-rc.2 原字节。OAuth 界面与�
 
 wallee-v1.5.4 沿用已安装的 wallee-v1.5.4-rc.1 原字节。先以 wallee-v1.5.2 为基线，通过 `scripts/personal-build-pi-images-candidate.mjs` 构建图片候选。再将该候选及其组件锁传给 `scripts/personal-build-session-messages-candidate.mjs`，只更新主程序。两个候选的组件锁保存在 `docs/personal/baselines/`。
 
+## Pi 1.7.0
+
+wallee-v1.6.0 以 wallee-v1.5.4 为基线，用 `scripts/personal-build-pi-upgrade-candidate.mjs` 构建。用户安装候选并确认会话正常后，正式版沿用候选 ZIP 原字节。正式组件锁为 `docs/personal/baselines/wallee-v1.6.0.json`。
+
 ## 最小构建
 
-当前 wallee-v1.5.4 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
+当前 wallee-v1.6.0 作为冻结基线。未来获批改动使用新的候选号和输出目录；仅修改主进程/工作台时可用下面的入口，局部界面修改则使用上一节的 reading 构建脚本：
 
 ```sh
 npm --prefix extensions/visual-review ci --ignore-scripts --omit=optional

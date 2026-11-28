@@ -6,10 +6,10 @@
 
 ## 下载与安装
 
-**当前正式版：[wallee-v1.5.4](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.5.4)**
+**当前正式版：[wallee-v1.6.0](https://github.com/xunhuang071-source/craft-agents-personal/releases/tag/wallee-v1.6.0)**
 
-- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.4/Craft-Agents-wallee-v1.5.4-mac-arm64.zip)
-- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.5.4/SHA256SUMS)
+- [下载 macOS Apple Silicon 安装 ZIP](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.6.0/Craft-Agents-wallee-v1.6.0-mac-arm64.zip)
+- [SHA256 校验文件](https://github.com/xunhuang071-source/craft-agents-personal/releases/download/wallee-v1.6.0/SHA256SUMS)
 - [版本日志](docs/personal/CHANGELOG.md)
 
 当前提供 macOS Apple Silicon 构建。退出旧版应用后，解压 ZIP，将 `Craft Agents.app` 拖入“应用程序”替换。程序采用本地 ad-hoc 签名，未进行 Apple 公证；请先核对下载校验值，并按 macOS 的安全提示处理首次打开。
